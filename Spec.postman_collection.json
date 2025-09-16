@@ -1,0 +1,358 @@
+{
+	"info": {
+		"_postman_id": "13b7f593-cf01-4fed-a3bb-1e1d5e2519b7",
+		"name": "Spec",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "46821439",
+		"_collection_link": "https://lively-rocket-9383385.postman.co/workspace/Mr.-Fridmak_Play's-Workspace~e28fe61a-1b38-4b7e-80e0-57fc9b9b6be0/collection/46821439-13b7f593-cf01-4fed-a3bb-1e1d5e2519b7?action=share&source=collection_link&creator=46821439"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "RegisterUser",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"UserName\" : \"UserName\",\r\n    \"Password\" : \"password\",\r\n    \"Email\" : \"Email\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/auth/register",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "LoginUser",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"Email\" : \"apbatin2005@gmail.com\",\r\n    \"Password\" : \"1\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/auth/login",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "AboutCurrentUser",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"Email\": \"apbatin2005@gmail.com\",\r\n    \"Password\" : \"1\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/auth/me",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tasks",
+			"item": [
+				{
+					"name": "AddTask",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"Title\" : \"New\",\r\n    \"Description\" : \"Description\",\r\n    \"DeadLine\" : \"2024-01-15T14:30:45.123Z\",\r\n    \"Priority\" : \"Normal\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/tasks",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"tasks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "UpdateTaskById",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    //AddComment, RemoveLastComment, None\r\n    \"Comment\" : \"None\",\r\n    \"Desciption\" : \"Desciption\",\r\n    \"DeadLine\" : \"2024-01-15T14:30:45.123Z\",\r\n     //High, Low, Normal, Nessasery\r\n    \"Priority\" : \"Normal\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/tasks/{id}",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"tasks",
+								"{id}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "DeleteTask",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"Title\" : \"New\",\r\n    \"Description\" : \"Description\",\r\n    \"DeadLine\" : \"2024-01-15T14:30:45.123Z\",\r\n    \"Priority\" : \"Normal\"\r\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/tasks/{id}",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"tasks",
+								"{id}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTaskById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/tasks/{id}",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"tasks",
+								"{id}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTasks",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/tasks",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"tasks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "AssignTask",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"content-type": true
+						}
+					},
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"UserId\" : \"293ca023-3924-4141-a080-8d88325d4ef4\"\r\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/tasks/520cb314-2e25-4909-ae8a-e804f66a044e/assign",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"tasks",
+								"520cb314-2e25-4909-ae8a-e804f66a044e",
+								"assign"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTaskByIdHistory",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/tasks/520cb314-2e25-4909-ae8a-e804f66a044e/history",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"tasks",
+								"520cb314-2e25-4909-ae8a-e804f66a044e",
+								"history"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "GetNotifications",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"Title\" : \"New\",\r\n    \"Description\" : \"Description\",\r\n    \"DeadLine\" : \"2024-01-15T14:30:45.123Z\",\r\n    \"Priority\" : \"Normal\"\r\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/notifications/{id}",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"{id}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "CreateNotification",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"UserId\" : \"id\",\r\n    \"Title\" : \"Title\",\r\n    \"Message\" : \"Message\",\r\n    //TaskCreated, TaskAssigned, TaskUpdated, TaskDeleted, TaskReassigned\r\n    \"Type\" : \"TaskCreated\",\r\n    \"Author\" : \"nullable\",\r\n    \"CreatedAt\" : \"2024-01-15T14:30:45.123Z\",\r\n    \"Data\" : {\"somedata\" : \"data\"}\r\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/notifications",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"notifications"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "MarkNotificationRead",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/notifications/{id}/mark-as-read",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"{id}",
+								"mark-as-read"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "",
+			"type": "default"
+		}
+	]
+}
