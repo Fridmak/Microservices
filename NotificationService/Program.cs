@@ -45,8 +45,6 @@ var app = builder.Build();
 
 app.UseRouting();
 
-app.UseRouting();
-
 app.UseAuthentication();
 app.UseAuthorization();
 

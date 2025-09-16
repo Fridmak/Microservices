@@ -47,7 +47,7 @@ builder.Services.AddHttpClient<INotificationConnection, NotificationConnection>(
 
 var app = builder.Build();
 
-app.UseAuthorization();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
