@@ -1,0 +1,79 @@
+﻿using AuthService.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
+using Shared.Models;
+
+namespace AuthService.Services
+{
+    public interface IUserService
+    {
+        Task<User> RegisterAsync(string name, string email, string password);
+        Task<User?> AuthenticateAsync(string email, string password);
+        Task<bool> UserExistsAsync(string email);
+        Task<User?> GetByIdAsync(Guid id);
+    }
+    public class UserService : IUserService
+    {
+        private AuthDbContext _context;
+        private PasswordService _passwordService;
+
+        public UserService(AuthDbContext context, PasswordService passwordService)
+        {
+            _context = context;
+            _passwordService = passwordService;
+        }
+
+        public async Task<User> RegisterAsync(string name, string email, string password)
+        {
+
+            if (await UserExistsAsync(email))
+                throw new InvalidOperationException("User with this email already exists");
+
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = name,
+                Email = email
+            };
+
+            user.PasswordHash = _passwordService.HashPassword(password);
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            return user;
+        }
+
+        public async Task<User?> AuthenticateAsync(string email, string password)
+        {
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null)
+                return null;
+
+            if (!_passwordService.VerifyPassword(password, user.PasswordHash))
+                return null;
+
+            return user;
+        }
+
+        public async Task<bool> UserExistsAsync(string email)
+        {
+            return await _context.Users
+                .AnyAsync(u => u.Email == email);
+        }
+
+        public async Task<User?> GetByIdAsync(Guid id)
+        {
+            return await _context.Users
+                .Select(u => new User
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    Email = u.Email
+                })
+                .FirstOrDefaultAsync(u => u.Id == id);
+        }
+    }
+}

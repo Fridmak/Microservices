@@ -1,0 +1,324 @@
+﻿using Microsoft.EntityFrameworkCore;
+using Shared.Models;
+using System.Text.Json;
+using TaskService.Models;
+using TaskService.Models.Db;
+
+namespace TaskService.Services
+{
+    public interface IUserTaskService
+    {
+        // GET /api/tasks
+        Task<IEnumerable<UserTask>> GetAllTasksAsync(Guid id, int maxTasks, SortTasks sortBy);
+
+        // GET /api/tasks/{id}
+        Task<UserTask> GetTaskByIdAsync(Guid id);
+
+        // POST /api/tasks
+        Task<UserTask> CreateTaskAsync(CreateTaskDTO createTaskDto, Guid creator);
+
+        // PUT /api/tasks/{id}
+        Task<UserTask> UpdateTaskByIdAsync(Guid id, UpdateTaskDTO updateTaskDto);
+
+        // DELETE /api/tasks/{id}
+        Task<bool> DeleteTaskByIdAsync(Guid id);
+
+        // PUT /api/tasks/{id}/assign
+        Task<bool> AssignTaskByIdAsync(Guid tskId, Guid userId);
+
+        // GET /api/id/history
+        Task<List<TaskHistory>> GetTaskHistory(Guid id);
+    }
+
+    public class UserTaskService : IUserTaskService
+    {
+        private readonly TaskDbContext _context;
+        private readonly ILogger<UserTaskService> _logger;
+        private readonly INotificationConnection _notificationConnection;
+
+        public UserTaskService(
+            ILogger<UserTaskService> logger,
+            TaskDbContext context,
+            INotificationConnection notificationConnection)
+        {
+            _logger = logger;
+            _context = context;
+            _notificationConnection = notificationConnection;
+        }
+
+        public async Task<IEnumerable<UserTask>> GetAllTasksAsync(Guid userId, int maxTasks, SortTasks sortBy)
+        {
+            try
+            {
+                var query = _context.Tasks
+                    .Where(task => task.AssignedToUserId == userId);
+
+                query = sortBy switch
+                {
+                    SortTasks.ByPriority => query.OrderByDescending(task => task.Priority)
+                                                .ThenBy(task => task.DeadLine),
+                    SortTasks.ByDeadline => query.OrderBy(task => task.DeadLine)
+                                                .ThenByDescending(task => task.Priority),
+                    SortTasks.ByCreationDate => query.OrderByDescending(task => task.CreationTime)
+                                                    .ThenByDescending(task => task.Priority),
+                    SortTasks.Default or _ => query.OrderBy(task => task.CreationTime)
+                };
+
+                if (maxTasks > 0)
+                    query = query.Take(maxTasks);
+
+                var tasks = await query.ToListAsync();
+
+                _logger.LogInformation($"Получено {tasks.Count} задач для пользователя {userId} с сортировкой: {sortBy}");
+                return tasks;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении всех задач для пользователя {UserId}", userId);
+                throw;
+            }
+        }
+
+        public async Task<UserTask?> GetTaskByIdAsync(Guid id)
+        {
+            try
+            {
+                var task = await _context.Tasks
+                    .FirstOrDefaultAsync(t => t.Id == id);
+
+                if (task == null)
+                    _logger.LogWarning($"Задача с ID {id} не найдена");
+
+                return task;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при получении задачи с ID {id}");
+                throw;
+            }
+        }
+
+        public async Task<UserTask> CreateTaskAsync(CreateTaskDTO createTaskDto, Guid creatorId)
+        {
+            try
+            {
+                var task = new UserTask
+                {
+                    Id = Guid.NewGuid(),
+                    AssignedToUserId = creatorId,
+                    CreationTime = DateTime.UtcNow,
+                    DeadLine = createTaskDto.DeadLine,
+                    Priority = createTaskDto.Priority,
+                    Comment = new List<string> { createTaskDto.Description }
+                };
+
+                _context.Tasks.Add(task);
+                await _context.SaveChangesAsync();
+
+                await SaveHistoryAsync(task, ChangeType.Created);
+
+                try
+                {
+                    await _notificationConnection.SendTaskNotificationAsync(
+                        userId: task.AssignedToUserId,
+                        type: NotificationType.TaskCreated,
+                        title: "Новая задача",
+                        message: $"Создана новая задача: {createTaskDto.Title ?? "Без названия"}",
+                        taskId: task.Id,
+                        author: creatorId.ToString()
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Не удалось отправить уведомление о создании задачи {TaskId}", task.Id);
+                }
+
+                _logger.LogInformation($"Создана новая задача с ID {task.Id}");
+                return task;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при создании задачи");
+                throw;
+            }
+        }
+
+        public async Task<UserTask?> UpdateTaskByIdAsync(Guid id, UpdateTaskDTO updateTaskDto)
+        {
+            try
+            {
+                var task = await _context.Tasks.FindAsync(id);
+                if (task == null) return null;
+
+                var changes = new List<string>();
+
+                if (updateTaskDto.DeadLine.HasValue && task.DeadLine != updateTaskDto.DeadLine.Value)
+                {
+                    changes.Add($"срок выполнения изменен на {updateTaskDto.DeadLine.Value:dd.MM.yyyy}");
+                    task.DeadLine = updateTaskDto.DeadLine.Value;
+                }
+
+                if (updateTaskDto.Priority.HasValue && task.Priority != updateTaskDto.Priority.Value)
+                {
+                    changes.Add($"приоритет изменен на {updateTaskDto.Priority.Value}");
+                    task.Priority = updateTaskDto.Priority.Value;
+                }
+
+                if (updateTaskDto.Comment == UpdateCommentType.AddComment && updateTaskDto.Description != null)
+                {
+                    changes.Add($"добавлен комментарий");
+                    task.Comment.Add(updateTaskDto.Description);
+                }
+
+                if (updateTaskDto.Comment == UpdateCommentType.RemoveLastComment && task.Comment.Any())
+                {
+                    changes.Add($"удален последний комментарий");
+                    task.Comment.RemoveAt(task.Comment.Count - 1);
+                }
+
+                _context.Tasks.Update(task);
+                await _context.SaveChangesAsync();
+
+                await SaveHistoryAsync(task, ChangeType.Updated);
+
+                if (changes.Any())
+                {
+                    try
+                    {
+                        await _notificationConnection.SendTaskNotificationAsync(
+                            userId: task.AssignedToUserId,
+                            type: NotificationType.TaskUpdated,
+                            title: "Задача обновлена",
+                            message: $"Изменения: {string.Join(", ", changes)}",
+                            taskId: task.Id
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Не удалось отправить уведомление об обновлении задачи {TaskId}", task.Id);
+                    }
+                }
+
+                _logger.LogInformation($"Задача с ID {id} обновлена");
+                return task;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при обновлении задачи с ID {id}");
+                throw;
+            }
+        }
+
+        public async Task<bool> DeleteTaskByIdAsync(Guid id)
+        {
+            try
+            {
+                var task = await _context.Tasks.FindAsync(id);
+                if (task == null)
+                    return false;
+
+                await SaveHistoryAsync(task, ChangeType.Deleted);
+
+                _context.Tasks.Remove(task);
+                await _context.SaveChangesAsync();
+
+                try
+                {
+                    await _notificationConnection.SendTaskNotificationAsync(
+                        userId: task.AssignedToUserId,
+                        type: NotificationType.TaskDeleted,
+                        title: "Задача удалена",
+                        message: $"Задача была удалена",
+                        taskId: task.Id
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Не удалось отправить уведомление об удалении задачи {TaskId}", task.Id);
+                }
+
+                _logger.LogInformation($"Задача с ID {id} удалена");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при удалении задачи с ID {id}");
+                return false;
+            }
+        }
+
+        public async Task<bool> AssignTaskByIdAsync(Guid taskId, Guid userId)
+        {
+            try
+            {
+                var task = await _context.Tasks.FindAsync(taskId);
+                if (task == null)
+                    return false;
+
+                var oldAssignee = task.AssignedToUserId;
+                task.AssignedToUserId = userId;
+
+                await _context.SaveChangesAsync();
+                await SaveHistoryAsync(task, ChangeType.Assigned);
+
+                try
+                {
+                    await _notificationConnection.SendTaskNotificationAsync(
+                        userId: userId,
+                        type: NotificationType.TaskAssigned,
+                        title: "Задача назначена",
+                        message: $"Вам назначена задача",
+                        taskId: taskId
+                    );
+
+                    if (oldAssignee != Guid.Empty && oldAssignee != userId)
+                    {
+                        await _notificationConnection.SendTaskNotificationAsync(
+                            userId: oldAssignee,
+                            type: NotificationType.TaskReassigned,
+                            title: "Задача переназначена",
+                            message: $"Задача переназначена другому пользователю",
+                            taskId: taskId
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Не удалось отправить уведомление о назначении задачи {TaskId}", taskId);
+                }
+
+                _logger.LogInformation($"Задача с ID {taskId} назначена пользователю {userId}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при назначении задачи {taskId} пользователю {userId}");
+                return false;
+            }
+        }
+
+        private async Task SaveHistoryAsync(UserTask task, ChangeType changeType)
+        {
+            var history = new TaskHistory
+            {
+                TaskId = task.Id,
+                Type = changeType,
+                FullTaskState = JsonSerializer.Serialize(task),
+                ChangedAt = DateTime.UtcNow
+            };
+
+            _context.TaskHistories.Add(history);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<TaskHistory>> GetTaskHistory(Guid id)
+        {
+            var history = await _context.TaskHistories
+                .Where(h => h.TaskId == id)
+                .OrderByDescending(h => h.ChangedAt)
+                .ToListAsync();
+
+            return history;
+        }
+    }
+}
