@@ -98,6 +98,7 @@ namespace TaskService.Services
                     CreationTime = DateTime.UtcNow,
                     DeadLine = createTaskDto.DeadLine,
                     Priority = createTaskDto.Priority,
+                    Title = createTaskDto.Title,
                     Comment = new List<string> { createTaskDto.Description }
                 };
 

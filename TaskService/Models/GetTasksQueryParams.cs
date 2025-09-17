@@ -1,12 +1,16 @@
 ﻿using Shared.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace TaskService.Models
 {
     public class GetTasksQueryParams
     {
-        public int maxTasks { get; set; } = 10;
+        [Range(1, 100, ErrorMessage = "Max tasks must be between 1 and 100")]
+        public int MaxTasks { get; set; } = 10;
         public SortTasks SortBy { get; set; } = SortTasks.Default;
-        public Priority Search { get; set; }
-        public string? SearchWord { get; set; } // ToDo
+        public Priority? PriorityFilter { get; set; }
+
+        [StringLength(100, ErrorMessage = "Search term too long")]
+        public string? SearchTerm { get; set; }
     }
 }

@@ -11,6 +11,8 @@ namespace Shared.Models
         [Required]
         public DateTime CreationTime { get; set; }
         [Required]
+        public string Title { get; set; }
+        [Required]
         public DateTime DeadLine {  get; set; }
         [Required]
         public Priority Priority { get; set; }
