@@ -11,14 +11,12 @@ namespace NotificationService.Controllers
     public class NotificationsController : ControllerBase
     {
         private readonly INotificationService _notificationService;
-        private readonly ILogger<NotificationsController> _logger;
 
         public NotificationsController(
             INotificationService notificationService,
             ILogger<NotificationsController> logger)
         {
             _notificationService = notificationService;
-            _logger = logger;
         }
 
         [HttpGet("{userId}")]
@@ -32,7 +30,6 @@ namespace NotificationService.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Ошибка при получении уведомлений для пользователя {userId}");
                 return StatusCode(500, "Ошибка сервера");
             }
         }
@@ -48,12 +45,10 @@ namespace NotificationService.Controllers
             }
             catch (ArgumentException ex)
             {
-                _logger.LogWarning(ex, "Некорректные данные уведомления");
                 return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при создании уведомления");
                 return StatusCode(500, "Ошибка сервера");
             }
         }
@@ -81,7 +76,6 @@ namespace NotificationService.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Ошибка при отметке уведомления {id} как прочитанного");
                 return StatusCode(500, "Ошибка сервера");
             }
         }

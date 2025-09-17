@@ -42,15 +42,6 @@ app.UseCookiePolicy();
 
 app.Use(async (context, next) =>
 {
-    var path = context.Request.Path;
-
-    if (path.StartsWithSegments("/api/auth/login") ||
-        path.StartsWithSegments("/api/auth/register"))
-    {
-        await next();
-        return;
-    }
-
     if (context.Request.Cookies.TryGetValue("auth_token", out var token) &&
         !string.IsNullOrEmpty(token))
     {

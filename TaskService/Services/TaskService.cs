@@ -9,7 +9,7 @@ namespace TaskService.Services
     public interface IUserTaskService
     {
         // GET /api/tasks
-        Task<IEnumerable<UserTask>> GetAllTasksAsync(Guid id, int maxTasks, SortTasks sortBy);
+        Task<List<UserTask>> GetAllTasksAsync(Guid id, GetTasksQueryParams rules);
 
         // GET /api/tasks/{id}
         Task<UserTask> GetTaskByIdAsync(Guid id);
@@ -21,7 +21,7 @@ namespace TaskService.Services
         Task<UserTask> UpdateTaskByIdAsync(Guid id, UpdateTaskDTO updateTaskDto);
 
         // DELETE /api/tasks/{id}
-        Task<bool> DeleteTaskByIdAsync(Guid id);
+        Task<bool> DeleteTaskByIdAsync(Guid id, bool isHardDelete);
 
         // PUT /api/tasks/{id}/assign
         Task<bool> AssignTaskByIdAsync(Guid tskId, Guid userId);
@@ -35,41 +35,30 @@ namespace TaskService.Services
         private readonly TaskDbContext _context;
         private readonly ILogger<UserTaskService> _logger;
         private readonly INotificationConnection _notificationConnection;
+        private readonly ITaskSorter _taskSorter;
 
         public UserTaskService(
             ILogger<UserTaskService> logger,
             TaskDbContext context,
-            INotificationConnection notificationConnection)
+            INotificationConnection notificationConnection,
+            ITaskSorter taskSorter)
         {
             _logger = logger;
             _context = context;
             _notificationConnection = notificationConnection;
+            _taskSorter = taskSorter;
         }
 
-        public async Task<IEnumerable<UserTask>> GetAllTasksAsync(Guid userId, int maxTasks, SortTasks sortBy)
+        public async Task<List<UserTask>> GetAllTasksAsync(Guid userId, GetTasksQueryParams rules)
         {
             try
             {
                 var query = _context.Tasks
-                    .Where(task => task.AssignedToUserId == userId);
+                    .Where(task => task.AssignedToUserId == userId && !task.IsSoftDeleted);
 
-                query = sortBy switch
-                {
-                    SortTasks.ByPriority => query.OrderByDescending(task => task.Priority)
-                                                .ThenBy(task => task.DeadLine),
-                    SortTasks.ByDeadline => query.OrderBy(task => task.DeadLine)
-                                                .ThenByDescending(task => task.Priority),
-                    SortTasks.ByCreationDate => query.OrderByDescending(task => task.CreationTime)
-                                                    .ThenByDescending(task => task.Priority),
-                    SortTasks.Default or _ => query.OrderBy(task => task.CreationTime)
-                };
+                var tasks = await _taskSorter.SortQueryOfTasks(rules, query);
 
-                if (maxTasks > 0)
-                    query = query.Take(maxTasks);
-
-                var tasks = await query.ToListAsync();
-
-                _logger.LogInformation($"Получено {tasks.Count} задач для пользователя {userId} с сортировкой: {sortBy}");
+                _logger.LogInformation($"Получено {tasks} задач для пользователя {userId}");
                 return tasks;
             }
             catch (Exception ex)
@@ -84,7 +73,7 @@ namespace TaskService.Services
             try
             {
                 var task = await _context.Tasks
-                    .FirstOrDefaultAsync(t => t.Id == id);
+                    .FirstOrDefaultAsync(t => t.Id == id && !t.IsSoftDeleted);
 
                 if (task == null)
                     _logger.LogWarning($"Задача с ID {id} не найдена");
@@ -148,7 +137,8 @@ namespace TaskService.Services
             try
             {
                 var task = await _context.Tasks.FindAsync(id);
-                if (task == null) return null;
+
+                if (task == null || task.IsSoftDeleted) return null;
 
                 var changes = new List<string>();
 
@@ -209,7 +199,7 @@ namespace TaskService.Services
             }
         }
 
-        public async Task<bool> DeleteTaskByIdAsync(Guid id)
+        public async Task<bool> DeleteTaskByIdAsync(Guid id, bool IsHardDelete)
         {
             try
             {
@@ -217,9 +207,13 @@ namespace TaskService.Services
                 if (task == null)
                     return false;
 
-                await SaveHistoryAsync(task, ChangeType.Deleted);
+                await SaveHistoryAsync(task, IsHardDelete? ChangeType.Deleted : ChangeType.SoftDeleted);
 
-                _context.Tasks.Remove(task);
+                if (IsHardDelete)
+                    _context.Tasks.Remove(task);
+                else
+                    task.IsSoftDeleted = true;
+
                 await _context.SaveChangesAsync();
 
                 try
@@ -228,7 +222,7 @@ namespace TaskService.Services
                         userId: task.AssignedToUserId,
                         type: NotificationType.TaskDeleted,
                         title: "Задача удалена",
-                        message: $"Задача была удалена",
+                        message: $"Задача была удалена с флагом hard: {IsHardDelete}",
                         taskId: task.Id
                     );
                 }
@@ -237,7 +231,7 @@ namespace TaskService.Services
                     _logger.LogWarning(ex, "Не удалось отправить уведомление об удалении задачи {TaskId}", task.Id);
                 }
 
-                _logger.LogInformation($"Задача с ID {id} удалена");
+                _logger.LogInformation($"Задача с ID {id} удалена с флагом hard: {IsHardDelete}");
                 return true;
             }
             catch (Exception ex)
@@ -252,7 +246,7 @@ namespace TaskService.Services
             try
             {
                 var task = await _context.Tasks.FindAsync(taskId);
-                if (task == null)
+                if (task == null || task.IsSoftDeleted)
                     return false;
 
                 var oldAssignee = task.AssignedToUserId;

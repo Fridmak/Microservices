@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace Shared.Models
 {
-    public class User
+    public class PublicUser
     {
         [Required]
         public Guid Id { get; set; }
@@ -16,6 +11,7 @@ namespace Shared.Models
         public string Name { get; set; }
         [Required]
         public string PasswordHash { get; set; }
+        [Required]
         public string Email { get; set; }
     }
 }

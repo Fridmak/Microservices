@@ -44,6 +44,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddScoped<IUserTaskService, UserTaskService>();
 builder.Services.AddHttpClient<INotificationConnection, NotificationConnection>();
+builder.Services.AddSingleton<ITaskSorter, TaskSortHelper>();
 
 var app = builder.Build();
 

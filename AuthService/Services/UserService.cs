@@ -7,10 +7,10 @@ namespace AuthService.Services
 {
     public interface IUserService
     {
-        Task<User> RegisterAsync(string name, string email, string password);
-        Task<User?> AuthenticateAsync(string email, string password);
+        Task<PublicUser> RegisterAsync(string name, string email, string password);
+        Task<PublicUser?> AuthenticateAsync(string email, string password);
         Task<bool> UserExistsAsync(string email);
-        Task<User?> GetByIdAsync(Guid id);
+        Task<PublicUser?> GetByIdAsync(Guid id);
     }
     public class UserService : IUserService
     {
@@ -23,13 +23,13 @@ namespace AuthService.Services
             _passwordService = passwordService;
         }
 
-        public async Task<User> RegisterAsync(string name, string email, string password)
+        public async Task<PublicUser> RegisterAsync(string name, string email, string password)
         {
 
             if (await UserExistsAsync(email))
                 throw new InvalidOperationException("User with this email already exists");
 
-            var user = new User
+            var user = new UserDbModel
             {
                 Id = Guid.NewGuid(),
                 Name = name,
@@ -41,10 +41,10 @@ namespace AuthService.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return user;
+            return user.ToPublicUser();
         }
 
-        public async Task<User?> AuthenticateAsync(string email, string password)
+        public async Task<PublicUser?> AuthenticateAsync(string email, string password)
         {
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == email);
@@ -55,7 +55,7 @@ namespace AuthService.Services
             if (!_passwordService.VerifyPassword(password, user.PasswordHash))
                 return null;
 
-            return user;
+            return user.ToPublicUser();
         }
 
         public async Task<bool> UserExistsAsync(string email)
@@ -64,15 +64,10 @@ namespace AuthService.Services
                 .AnyAsync(u => u.Email == email);
         }
 
-        public async Task<User?> GetByIdAsync(Guid id)
+        public async Task<PublicUser?> GetByIdAsync(Guid id)
         {
             return await _context.Users
-                .Select(u => new User
-                {
-                    Id = u.Id,
-                    Name = u.Name,
-                    Email = u.Email
-                })
+                .Select(u => u.ToPublicUser())
                 .FirstOrDefaultAsync(u => u.Id == id);
         }
     }

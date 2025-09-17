@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using NotificationService.Models.Db;
+using NotificationService.Models;
 using Shared.Models;
 
 namespace NotificationService.Services
@@ -37,6 +37,7 @@ namespace NotificationService.Services
                     .ToListAsync();
 
                 _logger.LogInformation($"Получено {notifications.Count} уведомлений для пользователя {userId}");
+
                 return notifications;
             }
             catch (Exception ex)

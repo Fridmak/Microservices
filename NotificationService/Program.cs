@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using NotificationService.Models.Db;
+using NotificationService.Models;
 using NotificationService.Services;
 using System.Text;
 

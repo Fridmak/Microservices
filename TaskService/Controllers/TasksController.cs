@@ -21,10 +21,10 @@ namespace TaskService.Controllers
         // GET /api/tasks
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> GetAll(int maxTasks = 10, SortTasks sortBy = SortTasks.Default)
+        public async Task<IActionResult> GetAll(GetTasksQueryParams rules)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            var tasks = await _taskService.GetAllTasksAsync(userId, maxTasks, sortBy);
+            var tasks = await _taskService.GetAllTasksAsync(userId, rules);
 
             return Ok(tasks);
         }
@@ -72,12 +72,12 @@ namespace TaskService.Controllers
         // DELETE /api/tasks/{id}
         [HttpDelete("{id}")]
         [Authorize]
-        public async Task<IActionResult> DeleteTaskById(Guid id)
+        public async Task<IActionResult> DeleteTaskById(Guid id, [FromBody] DeleteTaskDto dto)
         {
             if (id == Guid.Empty)
                 return BadRequest("Invalid ID");
 
-            var deletedTask = await _taskService.DeleteTaskByIdAsync(id);
+            var deletedTask = await _taskService.DeleteTaskByIdAsync(id, dto.IsHardDelete);
 
             if (!deletedTask)
                 return NotFound();

@@ -10,6 +10,6 @@ namespace AuthService.Models
         {
         }
 
-        public DbSet<User> Users { get; set; }
+        public DbSet<UserDbModel> Users { get; set; }
     }
 }

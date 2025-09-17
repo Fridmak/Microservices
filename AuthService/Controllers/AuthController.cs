@@ -1,4 +1,5 @@
-﻿using AuthService.Models;
+﻿
+using AuthService.Models;
 using AuthService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -76,7 +77,7 @@ namespace AuthService.Controllers
             return Ok(user);
         }
 
-        private string GenerateJwtToken(User user)
+        private string GenerateJwtToken(PublicUser user)
         {
             var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]);
 

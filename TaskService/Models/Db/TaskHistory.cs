@@ -21,6 +21,7 @@ namespace TaskService.Models.Db
         Updated = 1,
         Changed = 2,
         Assigned = 3,
-        Deleted = 4
+        Deleted = 4,
+        SoftDeleted = 5
     }
 }

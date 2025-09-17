@@ -14,6 +14,7 @@ namespace Shared.Models
         public DateTime DeadLine {  get; set; }
         [Required]
         public Priority Priority { get; set; }
+        public bool IsSoftDeleted { get; set; } = false;
         public List<string> Comment { get; set; } = new();
     }
 
