@@ -66,9 +66,17 @@ namespace AuthService.Services
 
         public async Task<PublicUser?> GetByIdAsync(Guid id)
         {
-            return await _context.Users
-                .Select(u => u.ToPublicUser())
-                .FirstOrDefaultAsync(u => u.Id == id);
+            var userDto = await _context.Users
+                .Where(u => u.Id == id)
+                .Select(u => new PublicUser
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    Email = u.Email
+                })
+                .FirstOrDefaultAsync();
+
+            return userDto;
         }
     }
 }

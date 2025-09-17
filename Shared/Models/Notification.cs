@@ -28,7 +28,7 @@ namespace Shared.Models
         [Required]
         public NotificationType Type { get; set; }
 
-        public string? Author { get; set; }
+        public Guid? Author { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

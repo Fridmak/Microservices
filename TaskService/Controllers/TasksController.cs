@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TaskService.Models;
 using TaskService.Services;
@@ -16,6 +15,8 @@ namespace TaskService.Controllers
         public TasksController(IUserTaskService taskService)
         {
             _taskService = taskService;
+
+            _taskService.CurrentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
         }
 
         // GET /api/tasks
@@ -23,8 +24,7 @@ namespace TaskService.Controllers
         [Authorize]
         public async Task<IActionResult> GetAll(GetTasksQueryParams rules)
         {
-            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            var tasks = await _taskService.GetAllTasksAsync(userId, rules);
+            var tasks = await _taskService.GetAllTasksAsync(rules);
 
             return Ok(tasks);
         }
@@ -45,10 +45,9 @@ namespace TaskService.Controllers
         // POST /api/tasks
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> CreateTask([FromBody] CreateTaskDTO task)
+        public async Task<IActionResult> CreateTask([FromBody]  CreateTaskDTO task)
         {
-            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-            var createdTask = await _taskService.CreateTaskAsync(task, userId);
+            var createdTask = await _taskService.CreateTaskAsync(task);
 
             if (createdTask != null)
                 return Ok();

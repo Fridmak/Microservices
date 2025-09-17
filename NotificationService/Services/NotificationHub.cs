@@ -26,12 +26,5 @@ namespace NotificationService.Services
                 _logger.LogError(ex, $"Ошибка при отправке уведомления через SignalR пользователю {notification.UserId}");
             }
         }
-
-        public async Task GetNotificationsForUser(Guid userId)
-        {
-            // Этот метод можно использовать для отправки всех непрочитанных уведомлений при подключении
-            // Реализация зависит от вашего хранилища
-            return;
-        }
     }
 }

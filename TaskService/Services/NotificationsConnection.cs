@@ -13,14 +13,16 @@ namespace TaskService.Services
             string message,
             Guid? taskId = null,
             Guid? relatedUserId = null,
-            string? author = null);
+            Guid? author = null);
     }
+
 
     public class NotificationConnection : INotificationConnection
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<NotificationConnection> _logger;
         private readonly string _notificationServiceBaseUrl;
+        private readonly string _apiKey;
 
         public NotificationConnection(
             HttpClient httpClient,
@@ -30,7 +32,11 @@ namespace TaskService.Services
             _httpClient = httpClient;
             _logger = logger;
 
-            _notificationServiceBaseUrl = configuration["Services:NotificationService:BaseUrl"];
+            _notificationServiceBaseUrl = configuration["Services:NotificationService:BaseUrl"]
+                ?? throw new InvalidOperationException("BaseUrl not configured.");
+
+            _apiKey = configuration["Services:NotificationService:Security:ApiKey"]
+                ?? throw new InvalidOperationException("ApiKey not configured.");
         }
 
         public async Task<bool> SendNotificationAsync(Notification notification)
@@ -40,10 +46,14 @@ namespace TaskService.Services
                 var url = $"{_notificationServiceBaseUrl}/api/notifications";
                 _logger.LogInformation($"Отправка уведомления на {url}");
 
-                var response = await _httpClient.PostAsJsonAsync(
-                    url,
-                    notification,
-                    new JsonSerializerOptions { WriteIndented = true });
+                var request = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = JsonContent.Create(notification, options: new JsonSerializerOptions { WriteIndented = true })
+                };
+
+                request.Headers.Add("Service-Api-Key", _apiKey);
+
+                var response = await _httpClient.SendAsync(request);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -69,7 +79,7 @@ namespace TaskService.Services
             string message,
             Guid? taskId = null,
             Guid? relatedUserId = null,
-            string? author = null)
+            Guid? author = null)
         {
             var data = new
             {

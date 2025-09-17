@@ -9,13 +9,13 @@ namespace TaskService.Services
     public interface IUserTaskService
     {
         // GET /api/tasks
-        Task<List<UserTask>> GetAllTasksAsync(Guid id, GetTasksQueryParams rules);
+        Task<List<UserTask>> GetAllTasksAsync(GetTasksQueryParams rules);
 
         // GET /api/tasks/{id}
         Task<UserTask> GetTaskByIdAsync(Guid id);
 
         // POST /api/tasks
-        Task<UserTask> CreateTaskAsync(CreateTaskDTO createTaskDto, Guid creator);
+        Task<UserTask> CreateTaskAsync(CreateTaskDTO createTaskDto);
 
         // PUT /api/tasks/{id}
         Task<UserTask> UpdateTaskByIdAsync(Guid id, UpdateTaskDTO updateTaskDto);
@@ -28,6 +28,8 @@ namespace TaskService.Services
 
         // GET /api/id/history
         Task<List<TaskHistory>> GetTaskHistory(Guid id);
+
+        Guid CurrentUserId { get; set; }
     }
 
     public class UserTaskService : IUserTaskService
@@ -36,6 +38,8 @@ namespace TaskService.Services
         private readonly ILogger<UserTaskService> _logger;
         private readonly INotificationConnection _notificationConnection;
         private readonly ITaskSorter _taskSorter;
+
+        public Guid CurrentUserId { get; set; }
 
         public UserTaskService(
             ILogger<UserTaskService> logger,
@@ -49,26 +53,26 @@ namespace TaskService.Services
             _taskSorter = taskSorter;
         }
 
-        public async Task<List<UserTask>> GetAllTasksAsync(Guid userId, GetTasksQueryParams rules)
+        public async Task<List<UserTask>> GetAllTasksAsync(GetTasksQueryParams rules)
         {
             try
             {
                 var query = _context.Tasks
-                    .Where(task => task.AssignedToUserId == userId && !task.IsSoftDeleted);
+                    .Where(task => task.AssignedToUserId == CurrentUserId && !task.IsSoftDeleted);
 
                 var tasks = await _taskSorter.SortQueryOfTasks(rules, query);
 
-                _logger.LogInformation($"Получено {tasks} задач для пользователя {userId}");
+                _logger.LogInformation($"Получено {tasks} задач для пользователя {CurrentUserId}");
                 return tasks;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при получении всех задач для пользователя {UserId}", userId);
+                _logger.LogError(ex, "Ошибка при получении всех задач для пользователя {UserId}", CurrentUserId);
                 throw;
             }
         }
 
-        public async Task<UserTask?> GetTaskByIdAsync(Guid id)
+        public async Task<UserTask> GetTaskByIdAsync(Guid id)
         {
             try
             {
@@ -87,14 +91,14 @@ namespace TaskService.Services
             }
         }
 
-        public async Task<UserTask> CreateTaskAsync(CreateTaskDTO createTaskDto, Guid creatorId)
+        public async Task<UserTask> CreateTaskAsync(CreateTaskDTO createTaskDto)
         {
             try
             {
                 var task = new UserTask
                 {
                     Id = Guid.NewGuid(),
-                    AssignedToUserId = creatorId,
+                    AssignedToUserId = CurrentUserId,
                     CreationTime = DateTime.UtcNow,
                     DeadLine = createTaskDto.DeadLine,
                     Priority = createTaskDto.Priority,
@@ -115,7 +119,7 @@ namespace TaskService.Services
                         title: "Новая задача",
                         message: $"Создана новая задача: {createTaskDto.Title ?? "Без названия"}",
                         taskId: task.Id,
-                        author: creatorId.ToString()
+                        author: CurrentUserId
                     );
                 }
                 catch (Exception ex)
@@ -133,7 +137,7 @@ namespace TaskService.Services
             }
         }
 
-        public async Task<UserTask?> UpdateTaskByIdAsync(Guid id, UpdateTaskDTO updateTaskDto)
+        public async Task<UserTask> UpdateTaskByIdAsync(Guid id, UpdateTaskDTO updateTaskDto)
         {
             try
             {
@@ -181,7 +185,8 @@ namespace TaskService.Services
                             type: NotificationType.TaskUpdated,
                             title: "Задача обновлена",
                             message: $"Изменения: {string.Join(", ", changes)}",
-                            taskId: task.Id
+                            taskId: task.Id,
+                            author: CurrentUserId
                         );
                     }
                     catch (Exception ex)
@@ -224,7 +229,8 @@ namespace TaskService.Services
                         type: NotificationType.TaskDeleted,
                         title: "Задача удалена",
                         message: $"Задача была удалена с флагом hard: {IsHardDelete}",
-                        taskId: task.Id
+                        taskId: task.Id,
+                        author: CurrentUserId
                     );
                 }
                 catch (Exception ex)
@@ -273,7 +279,8 @@ namespace TaskService.Services
                             type: NotificationType.TaskReassigned,
                             title: "Задача переназначена",
                             message: $"Задача переназначена другому пользователю",
-                            taskId: taskId
+                            taskId: taskId,
+                            author: CurrentUserId
                         );
                     }
                 }

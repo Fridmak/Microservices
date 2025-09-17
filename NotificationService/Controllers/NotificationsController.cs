@@ -11,12 +11,17 @@ namespace NotificationService.Controllers
     public class NotificationsController : ControllerBase
     {
         private readonly INotificationService _notificationService;
+        private readonly string _apiKey;
 
         public NotificationsController(
             INotificationService notificationService,
-            ILogger<NotificationsController> logger)
+            ILogger<NotificationsController> logger,
+            IConfiguration configuration)
         {
             _notificationService = notificationService;
+
+            _apiKey = configuration["Services:Security:ApiKey"]
+                ?? throw new InvalidOperationException("ApiKey not configured.");
         }
 
         [HttpGet("{userId}")]
@@ -35,9 +40,17 @@ namespace NotificationService.Controllers
         }
 
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> CreateNotification([FromBody] Notification notification)
         {
+            if (!Request.Headers.TryGetValue("Service-Api-Key", out var apiKey))
+            {
+                return Unauthorized("Missing ApiKey");
+            }
+            if (apiKey != _apiKey)
+            {
+                return Unauthorized("Invalid API Key");
+            }
+
             try
             {
                 var createdNotification = await _notificationService.CreateNotificationAsync(notification);
