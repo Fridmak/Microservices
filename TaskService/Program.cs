@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using TaskService.Models.Db;
 using TaskService.Services;
@@ -9,8 +10,6 @@ using TaskService.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.AddConsole();
-
-builder.Services.AddControllers();
 builder.Services.AddAuthorization();
 
 builder.Services.AddDbContext<TaskDbContext>(options =>
@@ -47,6 +46,8 @@ builder.Services.AddHttpClient<INotificationConnection, NotificationConnection>(
 builder.Services.AddSingleton<ITaskSorter, TaskSortHelper>();
 
 var app = builder.Build();
+
+app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();

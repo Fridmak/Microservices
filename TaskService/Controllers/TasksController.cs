@@ -15,16 +15,14 @@ namespace TaskService.Controllers
         public TasksController(IUserTaskService taskService)
         {
             _taskService = taskService;
-
-            _taskService.CurrentUserId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
         }
 
         // GET /api/tasks
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> GetAll(GetTasksQueryParams rules)
+        public async Task<IActionResult> GetAll([FromQuery] GetTasksQueryParams? rules)
         {
-            var tasks = await _taskService.GetAllTasksAsync(rules);
+            var tasks = await _taskService.GetAllTasksAsync(rules, Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value));
 
             return Ok(tasks);
         }
@@ -47,7 +45,7 @@ namespace TaskService.Controllers
         [Authorize]
         public async Task<IActionResult> CreateTask([FromBody]  CreateTaskDTO task)
         {
-            var createdTask = await _taskService.CreateTaskAsync(task);
+            var createdTask = await _taskService.CreateTaskAsync(task, Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value));
 
             if (createdTask != null)
                 return Ok();
@@ -58,9 +56,9 @@ namespace TaskService.Controllers
         // PUT /api/tasks/{id}
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> UpdateTaskById(Guid id, [FromBody] UpdateTaskDTO task)
+        public async Task<IActionResult> UpdateTaskById(string id, [FromBody] UpdateTaskDTO task)
         {
-            var updatedTask = await _taskService.UpdateTaskByIdAsync(id, task);
+            var updatedTask = await _taskService.UpdateTaskByIdAsync(Guid.Parse(id), task, Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value));
 
             if (updatedTask != null)
                 return Ok();
@@ -71,12 +69,15 @@ namespace TaskService.Controllers
         // DELETE /api/tasks/{id}
         [HttpDelete("{id}")]
         [Authorize]
-        public async Task<IActionResult> DeleteTaskById(Guid id, [FromBody] DeleteTaskDto dto)
+        public async Task<IActionResult> DeleteTaskById(Guid id, [FromBody] DeleteTaskDto? dto = null)
         {
             if (id == Guid.Empty)
                 return BadRequest("Invalid ID");
 
-            var deletedTask = await _taskService.DeleteTaskByIdAsync(id, dto.IsHardDelete);
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            var isHardDelete = dto?.IsHardDelete ?? false;
+
+            var deletedTask = await _taskService.DeleteTaskByIdAsync(id, isHardDelete, userId);
 
             if (!deletedTask)
                 return NotFound();
@@ -89,7 +90,7 @@ namespace TaskService.Controllers
         [Authorize]
         public async Task<IActionResult> AssignTaskById([FromRoute] string id, [FromBody] AssignTaskDTO userId)
         {
-            var assignedTask = await _taskService.AssignTaskByIdAsync(Guid.Parse(id), Guid.Parse(userId.UserId));
+            var assignedTask = await _taskService.AssignTaskByIdAsync(Guid.Parse(id), Guid.Parse(userId.UserId), Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value));
 
             if (assignedTask)
                 return Ok();

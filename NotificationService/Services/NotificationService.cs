@@ -32,7 +32,7 @@ namespace NotificationService.Services
             try
             {
                 var notifications = await _context.Notifications
-                    .Where(x => x.UserId == userId && x.IsRead == all)
+                    .Where(x => x.UserId == userId && (all || !x.IsRead))
                     .OrderByDescending(n => n.CreatedAt)
                     .ToListAsync();
 

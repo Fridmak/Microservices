@@ -1,9 +1,19 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 using Shared.Models;
+using System.Security.Claims;
 
 namespace NotificationService.Services
 {
+    public class UserIdProvider : IUserIdProvider
+    {
+        public string GetUserId(HubConnectionContext connection)
+        {
+            return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        }
+    }
 
+    [Authorize]
     public class NotificationHub : Hub
     {
         private readonly ILogger<NotificationHub> _logger;

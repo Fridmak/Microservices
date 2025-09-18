@@ -17,7 +17,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"UserName\" : \"UserName\",\r\n    \"Password\" : \"password\",\r\n    \"Email\" : \"Email\"\r\n}",
+							"raw": "{\r\n    \"username\" : \"TestNotifications\",\r\n    \"password\" : \"password\",\r\n    \"email\" : \"Emails\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -45,7 +45,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"Email\" : \"apbatin2005@gmail.com\",\r\n    \"Password\" : \"1\"\r\n}",
+							"raw": "{\r\n    \"email\" : \"Emails\",\r\n    \"password\" : \"password\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -109,7 +109,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"Title\" : \"New\",\r\n    \"Description\" : \"Description\",\r\n    \"DeadLine\" : \"2024-01-15T14:30:45.123Z\",\r\n    \"Priority\" : \"Normal\"\r\n}",
+							"raw": "{\r\n    \"title\" : \"Go to dasha\",\r\n    \"description\" : \"I need to go to hospital to her\",\r\n    \"deadLine\" : \"2025-01-15T14:30:45.123Z\",\r\n    \"priority\" : \"High\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -136,7 +136,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    //AddComment, RemoveLastComment, None\r\n    \"Comment\" : \"None\",\r\n    \"Desciption\" : \"Desciption\",\r\n    \"DeadLine\" : \"2024-01-15T14:30:45.123Z\",\r\n     //High, Low, Normal, Nessasery\r\n    \"Priority\" : \"Normal\"\r\n}",
+							"raw": "{\r\n    \"comment\": \"AddComment\",\r\n    \"description\": \"Second comment\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -144,14 +144,14 @@
 							}
 						},
 						"url": {
-							"raw": "{{baseURL}}/api/tasks/{id}",
+							"raw": "{{baseURL}}/api/tasks/9329b581-7997-441e-a40f-142516691211",
 							"host": [
 								"{{baseURL}}"
 							],
 							"path": [
 								"api",
 								"tasks",
-								"{id}"
+								"9329b581-7997-441e-a40f-142516691211"
 							]
 						}
 					},
@@ -164,17 +164,22 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"Title\" : \"New\",\r\n    \"Description\" : \"Description\",\r\n    \"DeadLine\" : \"2024-01-15T14:30:45.123Z\",\r\n    \"Priority\" : \"Normal\"\r\n}"
+							"raw": "{\r\n    \"IsHardDelete\": true\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
-							"raw": "{{baseURL}}/api/tasks/{id}",
+							"raw": "{{baseURL}}/api/tasks/9329b581-7997-441e-a40f-142516691211",
 							"host": [
 								"{{baseURL}}"
 							],
 							"path": [
 								"api",
 								"tasks",
-								"{id}"
+								"9329b581-7997-441e-a40f-142516691211"
 							]
 						}
 					},
@@ -186,14 +191,14 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseURL}}/api/tasks/{id}",
+							"raw": "{{baseURL}}/api/tasks/9329b581-7997-441e-a40f-142516691211",
 							"host": [
 								"{{baseURL}}"
 							],
 							"path": [
 								"api",
 								"tasks",
-								"{id}"
+								"9329b581-7997-441e-a40f-142516691211"
 							]
 						}
 					},
@@ -201,9 +206,21 @@
 				},
 				{
 					"name": "GetTasks",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
 					"request": {
 						"method": "GET",
 						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
 						"url": {
 							"raw": "{{baseURL}}/api/tasks",
 							"host": [
@@ -235,7 +252,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"UserId\" : \"293ca023-3924-4141-a080-8d88325d4ef4\"\r\n}"
+							"raw": "{\r\n    \"userId\" : \"293ca023-3924-4141-a080-8d88325d4ef4\"\r\n}"
 						},
 						"url": {
 							"raw": "{{baseURL}}/api/tasks/520cb314-2e25-4909-ae8a-e804f66a044e/assign",
@@ -258,14 +275,14 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseURL}}/api/tasks/520cb314-2e25-4909-ae8a-e804f66a044e/history",
+							"raw": "{{baseURL}}/api/tasks/9329b581-7997-441e-a40f-142516691211/history",
 							"host": [
 								"{{baseURL}}"
 							],
 							"path": [
 								"api",
 								"tasks",
-								"520cb314-2e25-4909-ae8a-e804f66a044e",
+								"9329b581-7997-441e-a40f-142516691211",
 								"history"
 							]
 						}
@@ -279,25 +296,18 @@
 			"item": [
 				{
 					"name": "GetNotifications",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
 					"request": {
 						"method": "GET",
 						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"Title\" : \"New\",\r\n    \"Description\" : \"Description\",\r\n    \"DeadLine\" : \"2024-01-15T14:30:45.123Z\",\r\n    \"Priority\" : \"Normal\"\r\n}"
-						},
 						"url": {
-							"raw": "{{baseURL}}/api/notifications/{id}",
+							"raw": "{{baseURL}}/api/notifications/07c022e3-75b6-4395-ae99-88a77ec4ce3f",
 							"host": [
 								"{{baseURL}}"
 							],
 							"path": [
 								"api",
 								"notifications",
-								"{id}"
+								"07c022e3-75b6-4395-ae99-88a77ec4ce3f"
 							]
 						}
 					},
@@ -331,14 +341,14 @@
 						"method": "PUT",
 						"header": [],
 						"url": {
-							"raw": "{{baseURL}}/api/notifications/{id}/mark-as-read",
+							"raw": "{{baseURL}}/api/notifications/3c60073f-e756-4e21-a99f-9d6eda353475/mark-as-read",
 							"host": [
 								"{{baseURL}}"
 							],
 							"path": [
 								"api",
 								"notifications",
-								"{id}",
+								"3c60073f-e756-4e21-a99f-9d6eda353475",
 								"mark-as-read"
 							]
 						}

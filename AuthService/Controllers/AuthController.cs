@@ -29,8 +29,8 @@ namespace AuthService.Controllers
         {
             try
             {
-                var user = await _userService.RegisterAsync(model.UserName, model.Email, model.Password);
-                return Ok(new { Message = $"User {model.UserName} registered successfully" });
+                var user = await _userService.RegisterAsync(model.Username, model.Email, model.Password);
+                return Ok(new { Message = $"User {model.Username} registered successfully" });
             }
             catch (InvalidOperationException ex)
             {

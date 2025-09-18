@@ -9,8 +9,11 @@ namespace TaskService.Models.Db
         public Guid Id { get; set; }
         [Required]
         public Guid TaskId { get; set; }
-        public string? ChangedByUserId { get; set; }
+        [Required]
+        public Guid ChangedByUserId { get; set; }
+        [Required]
         public DateTime ChangedAt { get; set; }
+        [Required]
         public ChangeType Type { get; set; }
         public string? FullTaskState { get; set; } // JSON
     }

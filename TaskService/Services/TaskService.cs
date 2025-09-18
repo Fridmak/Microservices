@@ -9,27 +9,25 @@ namespace TaskService.Services
     public interface IUserTaskService
     {
         // GET /api/tasks
-        Task<List<UserTask>> GetAllTasksAsync(GetTasksQueryParams rules);
+        Task<List<UserTask>> GetAllTasksAsync(GetTasksQueryParams? rules, Guid currentUserId);
 
         // GET /api/tasks/{id}
         Task<UserTask> GetTaskByIdAsync(Guid id);
 
         // POST /api/tasks
-        Task<UserTask> CreateTaskAsync(CreateTaskDTO createTaskDto);
+        Task<UserTask> CreateTaskAsync(CreateTaskDTO createTaskDto, Guid currentUserId);
 
         // PUT /api/tasks/{id}
-        Task<UserTask> UpdateTaskByIdAsync(Guid id, UpdateTaskDTO updateTaskDto);
+        Task<UserTask> UpdateTaskByIdAsync(Guid id, UpdateTaskDTO updateTaskDto, Guid currentUserId);
 
         // DELETE /api/tasks/{id}
-        Task<bool> DeleteTaskByIdAsync(Guid id, bool isHardDelete);
+        Task<bool> DeleteTaskByIdAsync(Guid id, bool isHardDelete, Guid currentUserId);
 
         // PUT /api/tasks/{id}/assign
-        Task<bool> AssignTaskByIdAsync(Guid tskId, Guid userId);
+        Task<bool> AssignTaskByIdAsync(Guid tskId, Guid userId, Guid currentUserId);
 
         // GET /api/id/history
         Task<List<TaskHistory>> GetTaskHistory(Guid id);
-
-        Guid CurrentUserId { get; set; }
     }
 
     public class UserTaskService : IUserTaskService
@@ -38,8 +36,6 @@ namespace TaskService.Services
         private readonly ILogger<UserTaskService> _logger;
         private readonly INotificationConnection _notificationConnection;
         private readonly ITaskSorter _taskSorter;
-
-        public Guid CurrentUserId { get; set; }
 
         public UserTaskService(
             ILogger<UserTaskService> logger,
@@ -53,21 +49,21 @@ namespace TaskService.Services
             _taskSorter = taskSorter;
         }
 
-        public async Task<List<UserTask>> GetAllTasksAsync(GetTasksQueryParams rules)
+        public async Task<List<UserTask>> GetAllTasksAsync(GetTasksQueryParams? rules, Guid currentUserId)
         {
             try
             {
                 var query = _context.Tasks
-                    .Where(task => task.AssignedToUserId == CurrentUserId && !task.IsSoftDeleted);
+                    .Where(task => task.AssignedToUserId == currentUserId);
 
-                var tasks = await _taskSorter.SortQueryOfTasks(rules, query);
+                var tasks = await _taskSorter.SortQueryOfTasks(rules ?? new GetTasksQueryParams(), query);
 
-                _logger.LogInformation($"Получено {tasks} задач для пользователя {CurrentUserId}");
+                _logger.LogInformation($"Получено {tasks.Count} задач для пользователя {currentUserId}");
                 return tasks;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при получении всех задач для пользователя {UserId}", CurrentUserId);
+                _logger.LogError(ex, $"Ошибка при получении всех задач для пользователя {currentUserId}");
                 throw;
             }
         }
@@ -91,14 +87,14 @@ namespace TaskService.Services
             }
         }
 
-        public async Task<UserTask> CreateTaskAsync(CreateTaskDTO createTaskDto)
+        public async Task<UserTask> CreateTaskAsync(CreateTaskDTO createTaskDto, Guid currentUserId)
         {
             try
             {
                 var task = new UserTask
                 {
                     Id = Guid.NewGuid(),
-                    AssignedToUserId = CurrentUserId,
+                    AssignedToUserId = currentUserId,
                     CreationTime = DateTime.UtcNow,
                     DeadLine = createTaskDto.DeadLine,
                     Priority = createTaskDto.Priority,
@@ -109,7 +105,7 @@ namespace TaskService.Services
                 _context.Tasks.Add(task);
                 await _context.SaveChangesAsync();
 
-                await SaveHistoryAsync(task, ChangeType.Created);
+                await SaveHistoryAsync(task, ChangeType.Created, currentUserId);
 
                 try
                 {
@@ -119,12 +115,12 @@ namespace TaskService.Services
                         title: "Новая задача",
                         message: $"Создана новая задача: {createTaskDto.Title ?? "Без названия"}",
                         taskId: task.Id,
-                        author: CurrentUserId
+                        author: currentUserId
                     );
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Не удалось отправить уведомление о создании задачи {TaskId}", task.Id);
+                    _logger.LogWarning(ex, $"Не удалось отправить уведомление о создании задачи {task.Id}");
                 }
 
                 _logger.LogInformation($"Создана новая задача с ID {task.Id}");
@@ -137,7 +133,7 @@ namespace TaskService.Services
             }
         }
 
-        public async Task<UserTask> UpdateTaskByIdAsync(Guid id, UpdateTaskDTO updateTaskDto)
+        public async Task<UserTask> UpdateTaskByIdAsync(Guid id, UpdateTaskDTO updateTaskDto, Guid currentUserId)
         {
             try
             {
@@ -147,13 +143,13 @@ namespace TaskService.Services
 
                 var changes = new List<string>();
 
-                if (updateTaskDto.DeadLine.HasValue && task.DeadLine != updateTaskDto.DeadLine.Value)
+                if (updateTaskDto.DeadLine != null && task.DeadLine != updateTaskDto.DeadLine.Value)
                 {
                     changes.Add($"срок выполнения изменен на {updateTaskDto.DeadLine.Value:dd.MM.yyyy}");
                     task.DeadLine = updateTaskDto.DeadLine.Value;
                 }
 
-                if (updateTaskDto.Priority.HasValue && task.Priority != updateTaskDto.Priority.Value)
+                if (updateTaskDto.Priority != null && task.Priority != updateTaskDto.Priority != null)
                 {
                     changes.Add($"приоритет изменен на {updateTaskDto.Priority.Value}");
                     task.Priority = updateTaskDto.Priority.Value;
@@ -174,7 +170,7 @@ namespace TaskService.Services
                 _context.Tasks.Update(task);
                 await _context.SaveChangesAsync();
 
-                await SaveHistoryAsync(task, ChangeType.Updated);
+                await SaveHistoryAsync(task, ChangeType.Updated, currentUserId);
 
                 if (changes.Any())
                 {
@@ -186,7 +182,7 @@ namespace TaskService.Services
                             title: "Задача обновлена",
                             message: $"Изменения: {string.Join(", ", changes)}",
                             taskId: task.Id,
-                            author: CurrentUserId
+                            author: currentUserId
                         );
                     }
                     catch (Exception ex)
@@ -205,7 +201,7 @@ namespace TaskService.Services
             }
         }
 
-        public async Task<bool> DeleteTaskByIdAsync(Guid id, bool IsHardDelete)
+        public async Task<bool> DeleteTaskByIdAsync(Guid id, bool IsHardDelete, Guid currentUserId)
         {
             try
             {
@@ -213,7 +209,7 @@ namespace TaskService.Services
                 if (task == null)
                     return false;
 
-                await SaveHistoryAsync(task, IsHardDelete? ChangeType.Deleted : ChangeType.SoftDeleted);
+                await SaveHistoryAsync(task, IsHardDelete? ChangeType.Deleted : ChangeType.SoftDeleted, currentUserId);
 
                 if (IsHardDelete)
                     _context.Tasks.Remove(task);
@@ -230,7 +226,7 @@ namespace TaskService.Services
                         title: "Задача удалена",
                         message: $"Задача была удалена с флагом hard: {IsHardDelete}",
                         taskId: task.Id,
-                        author: CurrentUserId
+                        author: currentUserId
                     );
                 }
                 catch (Exception ex)
@@ -248,7 +244,7 @@ namespace TaskService.Services
             }
         }
 
-        public async Task<bool> AssignTaskByIdAsync(Guid taskId, Guid userId)
+        public async Task<bool> AssignTaskByIdAsync(Guid taskId, Guid userId, Guid currentUserId)
         {
             try
             {
@@ -260,7 +256,7 @@ namespace TaskService.Services
                 task.AssignedToUserId = userId;
 
                 await _context.SaveChangesAsync();
-                await SaveHistoryAsync(task, ChangeType.Assigned);
+                await SaveHistoryAsync(task, ChangeType.Assigned, currentUserId);
 
                 try
                 {
@@ -280,7 +276,7 @@ namespace TaskService.Services
                             title: "Задача переназначена",
                             message: $"Задача переназначена другому пользователю",
                             taskId: taskId,
-                            author: CurrentUserId
+                            author: currentUserId
                         );
                     }
                 }
@@ -299,14 +295,16 @@ namespace TaskService.Services
             }
         }
 
-        private async Task SaveHistoryAsync(UserTask task, ChangeType changeType)
+        private async Task SaveHistoryAsync(UserTask task, ChangeType changeType, Guid currentUserId)
         {
             var history = new TaskHistory
             {
+                Id = Guid.NewGuid(),
                 TaskId = task.Id,
                 Type = changeType,
                 FullTaskState = JsonSerializer.Serialize(task),
-                ChangedAt = DateTime.UtcNow
+                ChangedAt = DateTime.UtcNow,
+                ChangedByUserId = currentUserId
             };
 
             _context.TaskHistories.Add(history);

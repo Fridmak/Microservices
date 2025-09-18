@@ -16,7 +16,7 @@ namespace TaskService.Services
 
             if (rules.PriorityFilter.HasValue)
             {
-                query = query.Where(task => task.Priority == rules.PriorityFilter.Value);
+                query = query.Where(task => task.Priority == rules.PriorityFilter);
             }
 
             if (!string.IsNullOrWhiteSpace(rules.SearchTerm))
@@ -66,16 +66,16 @@ namespace TaskService.Services
                     .OrderByDescending(task => task.CreationTime)
                     .ThenByDescending(task => task.Priority),
 
-                _ => query.OrderByDescending(task => task.CreationTime)
+                _ => query.OrderByDescending(task => task.CreationTime) 
             };
         }
 
         private static IQueryable<UserTask> ApplyPagination(
-            GetTasksQueryParams rules,
-            IQueryable<UserTask> query)
+           GetTasksQueryParams rules,
+           IQueryable<UserTask> query)
         {
             var maxAllowed = 100;
-            var take = Math.Min(rules.MaxTasks, maxAllowed);
+            var take = Math.Min(rules.MaxTasks ?? 10, maxAllowed);
 
             return take > 0 ? query.Take(take) : query;
         }
