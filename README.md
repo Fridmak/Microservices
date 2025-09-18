@@ -7,3 +7,28 @@
 - Notifications: `dotnet run --urls "http://localhost:7003"`
 
 > SignalR client listens on Notifications service port.
+
+## Available Collections in API:
+
+### Priority
+- Normal
+- High
+- Low
+- Necessary
+
+### NotificationType
+- TaskCreated
+- TaskAssigned
+- TaskUpdated
+- TaskDeleted
+- TaskReassigned
+
+### SortTasks
+- ByPriority
+- ByDeadline
+- ByCreationDate
+- Default
+
+### UpdateCommentType (используется при обновлении комментариев к задачам)
+- AddComment
+- RemoveLastComment
