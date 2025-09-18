@@ -43,7 +43,7 @@ namespace TaskService.Controllers
         // POST /api/tasks
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> CreateTask([FromBody]  CreateTaskDTO task)
+        public async Task<IActionResult> CreateTask([FromBody] CreateTaskDTO task)
         {
             var createdTask = await _taskService.CreateTaskAsync(task, Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value));
 

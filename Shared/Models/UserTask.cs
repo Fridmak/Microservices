@@ -25,6 +25,6 @@ namespace Shared.Models
         Normal,
         High,
         Low,
-        Nessesary
+        Necessary
     }
 }

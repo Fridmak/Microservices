@@ -149,7 +149,7 @@ namespace TaskService.Services
                     task.DeadLine = updateTaskDto.DeadLine.Value;
                 }
 
-                if (updateTaskDto.Priority != null && task.Priority != updateTaskDto.Priority != null)
+                if (updateTaskDto.Priority != null && task.Priority != updateTaskDto.Priority.Value)
                 {
                     changes.Add($"приоритет изменен на {updateTaskDto.Priority.Value}");
                     task.Priority = updateTaskDto.Priority.Value;
@@ -201,7 +201,7 @@ namespace TaskService.Services
             }
         }
 
-        public async Task<bool> DeleteTaskByIdAsync(Guid id, bool IsHardDelete, Guid currentUserId)
+        public async Task<bool> DeleteTaskByIdAsync(Guid id, bool isHardDelete, Guid currentUserId)
         {
             try
             {
@@ -209,9 +209,9 @@ namespace TaskService.Services
                 if (task == null)
                     return false;
 
-                await SaveHistoryAsync(task, IsHardDelete? ChangeType.Deleted : ChangeType.SoftDeleted, currentUserId);
+                await SaveHistoryAsync(task, isHardDelete? ChangeType.Deleted : ChangeType.SoftDeleted, currentUserId);
 
-                if (IsHardDelete)
+                if (isHardDelete)
                     _context.Tasks.Remove(task);
                 else
                     task.IsSoftDeleted = true;
@@ -224,7 +224,7 @@ namespace TaskService.Services
                         userId: task.AssignedToUserId,
                         type: NotificationType.TaskDeleted,
                         title: "Задача удалена",
-                        message: $"Задача была удалена с флагом hard: {IsHardDelete}",
+                        message: $"Задача была удалена с флагом hard: {isHardDelete}",
                         taskId: task.Id,
                         author: currentUserId
                     );
@@ -234,7 +234,7 @@ namespace TaskService.Services
                     _logger.LogWarning(ex, "Не удалось отправить уведомление об удалении задачи {TaskId}", task.Id);
                 }
 
-                _logger.LogInformation($"Задача с ID {id} удалена с флагом hard: {IsHardDelete}");
+                _logger.LogInformation($"Задача с ID {id} удалена с флагом hard: {isHardDelete}");
                 return true;
             }
             catch (Exception ex)
