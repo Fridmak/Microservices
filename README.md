@@ -32,3 +32,5 @@
 ### UpdateCommentType (используется при обновлении комментариев к задачам)
 - AddComment
 - RemoveLastComment
+
+NEW
