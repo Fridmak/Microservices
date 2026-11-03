@@ -1,6 +1,6 @@
 # Microservices
 
-Учебный проект: четыре ASP.NET Core-сервиса с API Gateway, JWT-аутентификацией,
+Четыре ASP.NET Core-сервиса с API Gateway, JWT-аутентификацией,
 историей задач и real-time уведомлениями через SignalR.
 
 ## Стек
@@ -80,7 +80,7 @@ dotnet ef database update --project NotificationService
 - задачи: создание, список, обновление, назначение, удаление
 - SignalR-хаб в `NotificationService`
 
-## Что бы улучшил
+## Дальнейшие шаги
 
 - Docker Compose для PostgreSQL и всех сервисов в одну команду.
 - Интеграционные тесты через `WebApplicationFactory` и Testcontainers.
