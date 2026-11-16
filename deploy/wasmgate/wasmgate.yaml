@@ -1,0 +1,52 @@
+# WasmGate edge for the Microservices demo.
+#
+# Topology:
+#   client :8080
+#     /api/*  -> api pool  -> gateway:8080      (YARP handles JWT/CORS/cookies)
+#     /ws*    -> ws pool   -> notifications:8080 (SignalR hub alias)
+#
+# The path_router plugin inspects the first client packet and selects a pool;
+# once selected, the raw TCP stream is relayed. This is intentionally a demo
+# configuration. For production use TLS termination on this listener, or
+# prefer host/SNI routing with api.* and ws.* names.
+version: 1
+
+admin_addr: "0.0.0.0:9099"
+admin_allow_remote: true
+admin_pprof: false
+
+listeners:
+  - name: edge
+    addr: "0.0.0.0:8080"
+    upstream_pool: api
+    max_conns: 10000
+    dial_timeout: 5s
+    # 0 keeps long-lived WebSocket connections untouched and preserves splice(2).
+    idle_timeout: 0s
+    rate_limit:
+      max: 200
+      subnet_max: 1000
+      window: 1s
+      ban_duration: 5s
+    plugin:
+      path: "path_router.wasm"
+      data_mode: "once"
+      timeout: 50ms
+      # verdict 2 -> api, verdict 3 -> api (static fallback), verdict 4 -> ws
+      route_pools: ["api", "api", "ws"]
+
+pools:
+  api:
+    balance: round_robin
+    servers:
+      - "gateway:8080"
+    health_check:
+      interval: 5s
+      timeout: 1s
+  ws:
+    balance: round_robin
+    servers:
+      - "notifications:8080"
+    health_check:
+      interval: 5s
+      timeout: 1s

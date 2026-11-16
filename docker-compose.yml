@@ -68,6 +68,7 @@ services:
       <<: *common-env
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=NotificationsDb;Username=app;Password=${POSTGRES_PASSWORD}
       Services__Security__ApiKey: ${SERVICE_API_KEY}
+      Cors__AllowedOrigins__0: ${FRONTEND_ORIGIN:-http://localhost:5173}
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,6 +94,28 @@ services:
         condition: service_started
     ports:
       - "7000:8080"
+
+  wasmgate:
+    build:
+      context: .
+      dockerfile: deploy/wasmgate/Dockerfile
+      args:
+        WASMGATE_REF: ${WASMGATE_REF:-4d9448fd23dbe30a6ea58e392e7bad3fe8307a39}
+    environment:
+      WASMGATE_ADMIN_TOKEN: ${WASMGATE_ADMIN_TOKEN:-dev-wasmgate-admin-token}
+    depends_on:
+      gateway:
+        condition: service_started
+      notifications:
+        condition: service_started
+    ports:
+      - "8080:8080"
+      - "9099:9099"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -H \"Authorization: Bearer $$WASMGATE_ADMIN_TOKEN\" http://127.0.0.1:9099/healthz >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   pgdata:

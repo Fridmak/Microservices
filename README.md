@@ -2,19 +2,25 @@
 
 Backend системы управления задачами на ASP.NET Core 8: пользователи, задачи,
 назначение исполнителей, статусы, история изменений и уведомления.
-Четыре сервиса объединены API Gateway на YARP.
+Четыре сервиса объединены API Gateway на YARP, а внешним edge-роутером
+выступает WasmGate на Go.
 
 ## Архитектура
 
 ```
-Клиент
+Клиент :8080
   │
   ▼
-ApiGateway :7000          JWT-валидация, cookie → Authorization, CORS, rate limit
-  ├── AuthService :7001           регистрация, логин, JWT, справочник пользователей
-  ├── TaskService :7002           задачи, права, статусы, история, outbox
-  └── NotificationService :7003   уведомления, SignalR-хаб
+WasmGate (TCP/L4 + path_router WASM)
+  ├── /api/*  → ApiGateway :7000    JWT-валидация, cookie → Authorization, CORS
+  │                ├── AuthService :7001           регистрация, логин, JWT, справочник
+  │                ├── TaskService :7002           задачи, права, история, outbox
+  │                └── NotificationService :7003   уведомления, SignalR
+  └── /ws*    → NotificationService :7003   SignalR-хаб (алиас /notificationHub)
 ```
+
+WasmGate не заменяет YARP: он делает L4-релей и path-роутинг по первому
+HTTP-пакету. YARP остаётся HTTP-gateway с аутентификацией и CORS.
 
 Каждый сервис использует свою PostgreSQL-базу. Общие контракты, модели,
 исключения и настройки лежат в `Shared`.
@@ -23,6 +29,7 @@ ApiGateway :7000          JWT-валидация, cookie → Authorization, CORS
 
 - .NET 8, ASP.NET Core
 - YARP 2.3
+- WasmGate (Go, L4 edge + `path_router` WASM plugin)
 - PostgreSQL 16 + EF Core 9 / Npgsql
 - JWT + HttpOnly cookie, BCrypt
 - SignalR
@@ -63,17 +70,26 @@ ApiGateway :7000          JWT-валидация, cookie → Authorization, CORS
   доставка не создаёт дубль.
 - Публичный API работает только с уведомлениями текущего пользователя.
 - Пагинация, unread-count, mark-as-read, mark-all-as-read, delete.
-- SignalR-хаб `/notificationHub` и push `ReceiveNotification`.
+- SignalR-хаб `/notificationHub` и алиас `/ws` для маршрута через WasmGate.
+- Push `ReceiveNotification`; для `/ws` работает cookie-auth.
 - Dead-letter сообщения видны в health check TaskService.
 
-### Gateway
+### Gateway и WasmGate
 
-- Проксирование `/api/auth`, `/api/tasks`, `/api/notifications`.
+- WasmGate принимает клиентов на `:8080` и маршрутизирует:
+  - `/api/*` → ApiGateway;
+  - `/ws*` → NotificationService (SignalR);
+  - `/health*` → ApiGateway.
+- `path_router.wasm` из WasmGate выбирает пул по Host/path в первом пакете.
+- Внешний edge даёт TLS-терминацию/лимиты/health checks WasmGate; локально
+  используется HTTP.
+- ApiGateway проксирует `/api/auth`, `/api/tasks`, `/api/notifications`.
 - JWT-валидация на edge, политика `authenticated` на tasks/notifications.
 - Cookie `auth_token` превращается в `Authorization` и не пересылается внутрь.
 - CORS с `AllowCredentials` (origins задаются конфигом).
 - Rate limit login/register по IP.
 - Удалён нерабочий in-memory кэш ответов.
+- Для `/ws` cookie проверяет NotificationService сам; gateway в этой ветке нет.
 
 ### Качество
 
@@ -100,6 +116,18 @@ ApiGateway :7000          JWT-валидация, cookie → Authorization, CORS
 
 ## Быстрый старт через Docker
 
+Одна команда сама создаст `.env` со случайными секретами и поднимет весь стек:
+
+```bash
+# Windows
+./scripts/up.ps1
+
+# Linux / macOS
+./scripts/up.sh
+```
+
+Если хотите управлять секретами вручную:
+
 ```bash
 cp .env.example .env
 # откройте .env и замените пароли/ключи
@@ -110,11 +138,13 @@ docker compose up -d --build
 
 | Сервис | URL |
 |---|---|
-| Gateway | http://localhost:7000 |
+| **WasmGate (публичная точка входа)** | **http://localhost:8080** |
+| WasmGate admin (`/healthz`, `/metrics`) | http://localhost:9099 (Bearer token) |
+| ApiGateway (внутренний/direct) | http://localhost:7000 |
 | AuthService / Swagger | http://localhost:7001/swagger |
 | TaskService / Swagger | http://localhost:7002/swagger |
 | NotificationService / Swagger | http://localhost:7003/swagger |
-| Health | `http://localhost:7000/health` и `/health` каждого сервиса |
+| Health через WasmGate | `http://localhost:8080/health` |
 | PostgreSQL | `localhost:55432` (пользователь `app`) |
 
 Миграции применяются автоматически при старте контейнеров
@@ -124,8 +154,31 @@ docker compose up -d --build
 docker compose down -v
 ```
 
-Все публичные запросы идут через gateway. Direct-порты нужны для Swagger и
-для SignalR-хаба.
+WasmGate собирается из закреплённого коммита
+`WASMGATE_REF` (по умолчанию `4d9448f...`). Чтобы показать более свежую версию
+WasmGate:
+
+```bash
+WASMGATE_REF=main docker compose up -d --build wasmgate
+```
+
+Токен для `:9099` лежит в `.env` как `WASMGATE_ADMIN_TOKEN` (скрипт выше
+генерирует его автоматически).
+
+Публичные API-запросы идут через `http://localhost:8080`, а не напрямую в
+gateway. Direct-порты нужны для Swagger, отладки и SignalR-хаба.
+
+### SignalR через WasmGate
+
+Клиент подключается к `http://localhost:8080/ws` с `withCredentials: true`.
+WasmGate по пути `/ws*` отправляет соединение в NotificationService, минуя
+YARP. NotificationService принимает `auth_token` из cookie (или
+`access_token` из query для прямых клиентов).
+
+Ограничения `path_router`: он смотрит первый пакет, рассчитан на HTTP/1.1 и
+не является полноценным HTTP-роутером. Для production предпочтительнее
+TLS-терминация на WasmGate и/или раздельные hostname `api.*` и `ws.*` с
+SNI-роутингом.
 
 ## Локальный запуск
 
@@ -225,8 +278,12 @@ dotnet test tests/Microservices.IntegrationTests/Microservices.IntegrationTests.
 
 ## Ограничения и дальнейшие шаги
 
-- **SignalR через gateway не проксируется** — это оставлено под отдельные планы.
-  Хаб доступен напрямую на `:7003`; токен передаётся в `access_token` query.
+- **WasmGate path_router — не полноценный HTTP-роутер.** Он смотрит только
+  первый клиентский пакет; при разорванном request line соединение уйдёт в
+  default pool. Для production используйте TLS-терминацию и SNI/разные hostname
+  `api.*` и `ws.*`, либо YARP-маршрут `/notificationHub`.
+- **Хаб также доступен напрямую на `:7003`** (`/notificationHub`) для отладки;
+  публичный маршрут — `http://localhost:8080/ws`.
 - Нет frontend-приложения.
 - Нет ролей/админки и refresh-токенов; JWT живёт 24 часа.
 - Rate limiter в AuthService хранится в памяти — для нескольких инстансов нужен

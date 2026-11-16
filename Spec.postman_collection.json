@@ -1,11 +1,11 @@
 {
   "info": {
     "name": "Microservices API",
-    "description": "Task management API. All public requests go through the gateway at http://localhost:7000. Login stores an HttpOnly cookie; Postman keeps it automatically.",
+    "description": "Task management API. Public requests go through WasmGate at http://localhost:8080: /api/* is routed to YARP, /ws* to NotificationService. Login stores an HttpOnly cookie; Postman keeps it automatically.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseURL", "value": "http://localhost:7000" },
+    { "key": "baseURL", "value": "http://localhost:8080" },
     { "key": "notificationServiceURL", "value": "http://localhost:7003" },
     { "key": "serviceApiKey", "value": "change-me-service-api-key" },
     { "key": "emailA", "value": "alice@example.com" },
