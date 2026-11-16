@@ -366,3 +366,4 @@ FodyWeavers.xsd
 .env
 *.Local.json
 appsettings.Local.json
+.idea/

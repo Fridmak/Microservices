@@ -1,3 +1,0 @@
-CREATE DATABASE "AuthDb";
-CREATE DATABASE "TaskDb";
-CREATE DATABASE "NotificationsDb";

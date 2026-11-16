@@ -1,14 +1,20 @@
-# WasmGate edge for the Microservices demo.
+# WasmGate data plane for the Microservices demo.
 #
-# Topology:
+# HTTP/WebSocket edge:
 #   client :8080
-#     /api/*  -> api pool  -> gateway:8080      (YARP handles JWT/CORS/cookies)
-#     /ws*    -> ws pool   -> notifications:8080 (SignalR hub alias)
+#     /api/* -> api pool -> gateway:8080
+#     /ws*   -> ws pool  -> notifications:8080
 #
-# The path_router plugin inspects the first client packet and selects a pool;
-# once selected, the raw TCP stream is relayed. This is intentionally a demo
-# configuration. For production use TLS termination on this listener, or
-# prefer host/SNI routing with api.* and ws.* names.
+# PostgreSQL routing:
+#   client :5433
+#     database=AuthDb          -> auth-db:5432
+#     database=TaskDb          -> task-db:5432
+#     database=NotificationsDb -> notifications-db:5432
+#
+# The path_router and pg_router plugins inspect only the first client packet;
+# after the pool is selected the connection returns to the zero-copy splice(2)
+# path. PostgreSQL clients must use SSL Mode=Disable / sslmode=disable because
+# an SSLRequest does not carry a database name.
 version: 1
 
 admin_addr: "0.0.0.0:9099"
@@ -21,7 +27,6 @@ listeners:
     upstream_pool: api
     max_conns: 10000
     dial_timeout: 5s
-    # 0 keeps long-lived WebSocket connections untouched and preserves splice(2).
     idle_timeout: 0s
     rate_limit:
       max: 200
@@ -32,24 +37,25 @@ listeners:
       path: "path_router.wasm"
       data_mode: "once"
       timeout: 50ms
-      # verdict 2 -> api, verdict 3 -> api (static fallback), verdict 4 -> ws
       route_pools: ["api", "api", "ws"]
 
-  # Optional L4 demo listener. This is deliberately NOT on the application's
-  # database path: the services keep connecting to postgres:5432 directly.
-  # It demonstrates raw TCP/PostgreSQL relaying (SSLRequest, prepared
-  # statements, COPY, etc. all pass through untouched).
   - name: postgres
     addr: "0.0.0.0:5433"
-    upstream_pool: postgres
-    max_conns: 200
+    upstream_pool: authdb
+    max_conns: 400
     dial_timeout: 3s
     idle_timeout: 0s
     rate_limit:
-      max: 100
-      subnet_max: 500
+      max: 200
+      subnet_max: 1000
       window: 1s
       ban_duration: 5s
+    plugin:
+      path: "pg_router.wasm"
+      max_memory_pages: 32
+      data_mode: "once"
+      timeout: 50ms
+      route_pools: ["authdb", "taskdb", "notificationsdb"]
 
 pools:
   api:
@@ -66,10 +72,24 @@ pools:
     health_check:
       interval: 5s
       timeout: 1s
-  postgres:
+  authdb:
     balance: least_conn
     servers:
-      - "postgres:5432"
+      - "auth-db:5432"
+    health_check:
+      interval: 5s
+      timeout: 1s
+  taskdb:
+    balance: least_conn
+    servers:
+      - "task-db:5432"
+    health_check:
+      interval: 5s
+      timeout: 1s
+  notificationsdb:
+    balance: least_conn
+    servers:
+      - "notifications-db:5432"
     health_check:
       interval: 5s
       timeout: 1s

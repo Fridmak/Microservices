@@ -1,13 +1,14 @@
-# WasmGate edge
+# WasmGate integration
 
 This directory contains the WasmGate data-plane integration for the demo.
 
-- `wasmgate.yaml` — listener/pools and `path_router` configuration.
+- `wasmgate.yaml` — HTTP/WS listeners, PostgreSQL routing and plugin config.
 - `Dockerfile` — builds a static WasmGate binary from a pinned
-  `Fridmak/WasmGate` revision and packages the config.
-- `path_router.wasm` — local copy of the reference plugin, used for
-  `wasmgate -config ... -validate` on the host. The Docker image builds the
-  plugin from the same pinned revision as the data plane.
+  `Fridmak/WasmGate` revision and packages the config/plugins.
+- `entrypoint.sh` — optional CP bootstrap/enrollment wrapper.
+- `path_router.wasm` — reference plugin from WasmGate for `/api` vs `/ws`.
+- `pg_router.wasm` — our plugin that routes PostgreSQL by database name.
+- `plugins/pg_router/` — source and build instructions for `pg_router.wasm`.
 
 Routing:
 
@@ -16,16 +17,23 @@ client :8080
   /api/* -> gateway:8080
   /ws*   -> notifications:8080
 
-client :5433 (optional L4 demo)
-  raw PostgreSQL -> postgres:5432
+client :5433
+  database=AuthDb          -> auth-db:5432
+  database=TaskDb          -> task-db:5432
+  database=NotificationsDb -> notifications-db:5432
 ```
 
-The PostgreSQL listener is intentionally separate from the application's
-database path: services keep using `postgres:5432` directly.
+The data plane is a managed agent of `wasmgate-cp`: it enrolls on first start,
+keeps its identity in the `wasmgate_state` volume and applies signed YAML/artifact
+releases. If the CP is unavailable, the last applied config keeps running.
 
-The `path_router` plugin inspects the first client packet. It is suitable for
-this local demo; for production prefer TLS termination plus host/SNI routing
-(`api.*` / `ws.*`), or proxy the hub through YARP.
+`pg_router` parses the PostgreSQL StartupMessage. Clients must use
+`sslmode=disable` / `SSL Mode=Disable`; an SSLRequest does not carry the database
+name. `path_router` likewise inspects only the first client packet.
+
+The pinned revision is `2f18328fbe8bce96d93516e2fdbbb63c25c6c152`, which includes
+the `-validate` hotfix so configs with `admin_allow_remote` do not require a
+runtime admin token during CP release validation.
 
 The plugin and data plane are taken from the MIT-licensed
 `https://github.com/Fridmak/WasmGate` repository.

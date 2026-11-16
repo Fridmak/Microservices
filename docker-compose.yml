@@ -8,23 +8,154 @@ x-common-env: &common-env
   Jwt__ExpiryHours: "24"
   Database__MigrateOnStartup: "true"
 
+x-db-healthcheck: &db-healthcheck
+  test: ["CMD-SHELL", "pg_isready -U app -d $$POSTGRES_DB"]
+  interval: 5s
+  timeout: 5s
+  retries: 20
+
 services:
-  postgres:
+  auth-db:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_DB: postgres
+      POSTGRES_DB: AuthDb
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
-    ports:
-      - "127.0.0.1:55432:5432"
+      - auth_pgdata:/var/lib/postgresql/data
+    healthcheck: *db-healthcheck
+
+  task-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: TaskDb
+    volumes:
+      - task_pgdata:/var/lib/postgresql/data
+    healthcheck: *db-healthcheck
+
+  notifications-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: NotificationsDb
+    volumes:
+      - notifications_pgdata:/var/lib/postgresql/data
+    healthcheck: *db-healthcheck
+
+  wasmgate-cp-db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: wasmgate
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: wasmgate
+    volumes:
+      - wasmgate_cp_pgdata:/var/lib/postgresql/data
+      - ./deploy/wasmgate-cp/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U wasmgate -d wasmgate"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+
+  cert-init:
+    # Contains the openssl CLI; avoids a runtime `apk add` on first boot.
+    image: alpine/openssl:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /certs
+        if [ ! -f /certs/server.crt ] || [ ! -f /certs/release-signing.key ]; then
+          openssl req -x509 -newkey rsa:2048 -sha256 -days 365 -nodes \
+            -keyout /certs/server.key \
+            -out /certs/server.crt \
+            -subj "/CN=wasmgate-cp" \
+            -addext "subjectAltName=DNS:wasmgate-cp,DNS:control-plane,DNS:localhost,IP:127.0.0.1"
+          openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 \
+            -out /certs/release-signing.key
+          openssl pkey -in /certs/release-signing.key \
+            -pubout -out /certs/release-signing.key.pub
+        fi
+        chown -R 1654:1654 /certs
+        chmod 600 /certs/server.key /certs/release-signing.key
+        chmod 644 /certs/server.crt /certs/release-signing.key.pub
+    volumes:
+      - wasmgate_certs:/certs
+
+  wasmgate-cp:
+    build:
+      context: .
+      dockerfile: deploy/wasmgate-cp/Dockerfile
+      args:
+        WASMGATE_REF: ${WASMGATE_REF:-2f18328fbe8bce96d93516e2fdbbb63c25c6c152}
+    environment:
+      WASMGATE_CP_POSTGRES: "Host=wasmgate-cp-db;Port=5432;Database=wasmgate;Username=wasmgate;Password=${POSTGRES_PASSWORD}"
+      WASMGATE_CP_AGENT_CA_CERT: /data/ca/agents-ca.crt
+      WASMGATE_CP_AGENT_CA_KEY: /data/ca/agents-ca.key
+      WASMGATE_CP_SIGNING_KEY: /certs/release-signing.key
+      WASMGATE_CP_GRPC_LISTEN: https://0.0.0.0:9096
+      WASMGATE_CP_GRPC_TLS_CERT: /certs/server.crt
+      WASMGATE_CP_GRPC_TLS_KEY: /certs/server.key
+      WASMGATE_CP_GRPC_CLIENT_CA: /data/ca/agents-ca.crt
+      WASMGATE_CP_HTTP_LISTEN: http://0.0.0.0:9097
+      WASMGATE_CP_ARTIFACT_ROOT: /data/artifacts
+      WASMGATE_CP_WASMGATE_BIN: /app/wasmgate
+      WASMGATE_CP_ADMIN_TOKEN: ${WASMGATE_CP_ADMIN_TOKEN:?WASMGATE_CP_ADMIN_TOKEN is required}
+    volumes:
+      - wasmgate_cp_data:/data
+      - wasmgate_certs:/certs:ro
+    depends_on:
+      wasmgate-cp-db:
+        condition: service_healthy
+      cert-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:19097:9097"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9097/readyz >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  wasmgate:
+    build:
+      context: .
+      dockerfile: deploy/wasmgate/Dockerfile
+      args:
+        WASMGATE_REF: ${WASMGATE_REF:-2f18328fbe8bce96d93516e2fdbbb63c25c6c152}
+    environment:
+      WASMGATE_ADMIN_TOKEN: ${WASMGATE_ADMIN_TOKEN:?WASMGATE_ADMIN_TOKEN is required}
+      WASMGATE_CP_URL: https://wasmgate-cp:9096
+      WASMGATE_CP_ADMIN_URL: http://wasmgate-cp:9097
+      WASMGATE_CP_ADMIN_TOKEN: ${WASMGATE_CP_ADMIN_TOKEN:?WASMGATE_CP_ADMIN_TOKEN is required}
+      WASMGATE_AGENT_NAME: edge-01
+      WASMGATE_AGENT_PREFIX: edge-
+      WASMGATE_AGENT_ENV: prod
+    volumes:
+      - wasmgate_certs:/certs:ro
+      - wasmgate_state:/data
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      task-db:
+        condition: service_healthy
+      notifications-db:
+        condition: service_healthy
+      cert-init:
+        condition: service_completed_successfully
+      wasmgate-cp:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+      - "127.0.0.1:5433:5433"
+      - "127.0.0.1:19099:9099"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -H \"Authorization: Bearer $$WASMGATE_ADMIN_TOKEN\" http://127.0.0.1:9099/healthz >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   auth:
     build:
@@ -32,11 +163,11 @@ services:
       dockerfile: AuthService/Dockerfile
     environment:
       <<: *common-env
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=AuthDb;Username=app;Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__DefaultConnection: "Host=wasmgate;Port=5433;Database=AuthDb;Username=app;Password=${POSTGRES_PASSWORD};SSL Mode=Disable"
       Services__Security__ApiKey: ${SERVICE_API_KEY:?SERVICE_API_KEY is required}
       Auth__Cookie__Secure: "false"
     depends_on:
-      postgres:
+      wasmgate:
         condition: service_healthy
     ports:
       - "7001:8080"
@@ -47,13 +178,13 @@ services:
       dockerfile: TaskService/Dockerfile
     environment:
       <<: *common-env
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=TaskDb;Username=app;Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__DefaultConnection: "Host=wasmgate;Port=5433;Database=TaskDb;Username=app;Password=${POSTGRES_PASSWORD};SSL Mode=Disable"
       Services__AuthService__BaseUrl: http://auth:8080
       Services__AuthService__ApiKey: ${SERVICE_API_KEY}
       Services__NotificationService__BaseUrl: http://notifications:8080
       Services__NotificationService__ApiKey: ${SERVICE_API_KEY}
     depends_on:
-      postgres:
+      wasmgate:
         condition: service_healthy
       auth:
         condition: service_started
@@ -66,11 +197,11 @@ services:
       dockerfile: NotificationService/Dockerfile
     environment:
       <<: *common-env
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=NotificationsDb;Username=app;Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__DefaultConnection: "Host=wasmgate;Port=5433;Database=NotificationsDb;Username=app;Password=${POSTGRES_PASSWORD};SSL Mode=Disable"
       Services__Security__ApiKey: ${SERVICE_API_KEY}
       Cors__AllowedOrigins__0: ${FRONTEND_ORIGIN:-http://localhost:5173}
     depends_on:
-      postgres:
+      wasmgate:
         condition: service_healthy
     ports:
       - "7003:8080"
@@ -95,29 +226,11 @@ services:
     ports:
       - "7000:8080"
 
-  wasmgate:
-    build:
-      context: .
-      dockerfile: deploy/wasmgate/Dockerfile
-      args:
-        WASMGATE_REF: ${WASMGATE_REF:-4d9448fd23dbe30a6ea58e392e7bad3fe8307a39}
-    environment:
-      WASMGATE_ADMIN_TOKEN: ${WASMGATE_ADMIN_TOKEN:-dev-wasmgate-admin-token}
-    depends_on:
-      gateway:
-        condition: service_started
-      notifications:
-        condition: service_started
-    ports:
-      - "8080:8080"
-      - "127.0.0.1:19099:9099"
-      # Optional WasmGate L4 PostgreSQL demo. Services use postgres:5432.
-      - "127.0.0.1:5433:5433"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS -H \"Authorization: Bearer $$WASMGATE_ADMIN_TOKEN\" http://127.0.0.1:9099/healthz >/dev/null"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
 volumes:
-  pgdata:
+  auth_pgdata:
+  task_pgdata:
+  notifications_pgdata:
+  wasmgate_cp_pgdata:
+  wasmgate_cp_data:
+  wasmgate_certs:
+  wasmgate_state:
