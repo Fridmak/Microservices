@@ -1,103 +1,66 @@
-﻿using Shared.Models;
-using System.Text.Json;
+﻿using System.Net;
+using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Shared.Models;
+using Shared.Options;
+using Shared.Security;
+using Shared.Serialization;
 
 namespace TaskService.Services
 {
     public interface INotificationConnection
     {
-        Task<bool> SendNotificationAsync(Notification notification);
-        Task<bool> SendTaskNotificationAsync(
-            Guid userId,
-            NotificationType type,
-            string title,
-            string message,
-            Guid? taskId = null,
-            Guid? relatedUserId = null,
-            Guid? author = null);
+        Task<bool> SendNotificationAsync(Notification notification, CancellationToken cancellationToken = default);
     }
 
-
-    public class NotificationConnection : INotificationConnection
+    public sealed class NotificationConnection : INotificationConnection
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<NotificationConnection> _logger;
-        private readonly string _notificationServiceBaseUrl;
-        private readonly string _apiKey;
+        private readonly NotificationClientOptions _options;
 
         public NotificationConnection(
             HttpClient httpClient,
             ILogger<NotificationConnection> logger,
-            IConfiguration configuration)
+            IOptions<NotificationClientOptions> options)
         {
             _httpClient = httpClient;
             _logger = logger;
-
-            _notificationServiceBaseUrl = configuration["Services:NotificationService:BaseUrl"]
-                ?? throw new InvalidOperationException("BaseUrl not configured.");
-
-            _apiKey = configuration["Services:NotificationService:Security:ApiKey"]
-                ?? throw new InvalidOperationException("ApiKey not configured.");
+            _options = options.Value;
         }
 
-        public async Task<bool> SendNotificationAsync(Notification notification)
+        public async Task<bool> SendNotificationAsync(
+            Notification notification,
+            CancellationToken cancellationToken = default)
         {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "internal/notifications")
+            {
+                Content = JsonContent.Create(notification, options: JsonDefaults.Api)
+            };
+            request.Headers.Add(ApiKeyValidator.HeaderName, _options.ApiKey);
+
             try
             {
-                var url = $"{_notificationServiceBaseUrl}/api/notifications";
-                _logger.LogInformation($"Отправка уведомления на {url}");
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
 
-                var request = new HttpRequestMessage(HttpMethod.Post, url)
+                if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.Conflict)
                 {
-                    Content = JsonContent.Create(notification, options: new JsonSerializerOptions { WriteIndented = true })
-                };
-
-                request.Headers.Add("Service-Api-Key", _apiKey);
-
-                var response = await _httpClient.SendAsync(request);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation($"Уведомление типа {notification.Type} отправлено пользователю {notification.UserId}");
                     return true;
                 }
 
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning($"Не удалось отправить уведомление. Status: {response.StatusCode}, Response: {errorContent}");
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning(
+                    "NotificationService returned {StatusCode}: {Response}",
+                    (int)response.StatusCode,
+                    errorContent);
                 return false;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
-                _logger.LogError(ex, $"Ошибка при отправке уведомления типа {notification.Type}");
+                _logger.LogWarning(ex, "Failed to send notification {NotificationId}", notification.Id);
                 return false;
             }
-        }
-
-        public async Task<bool> SendTaskNotificationAsync(
-            Guid userId,
-            NotificationType type,
-            string title,
-            string message,
-            Guid? taskId = null,
-            Guid? relatedUserId = null,
-            Guid? author = null)
-        {
-            var data = new
-            {
-                TaskId = taskId,
-                RelatedUserId = relatedUserId
-            };
-
-            var notification = new Notification
-            {
-                UserId = userId,
-                Type = type,
-                Title = title,
-                Message = message,
-                Author = author,
-                Data = JsonSerializer.Serialize(data)
-            };
-
-            return await SendNotificationAsync(notification);
         }
     }
 }

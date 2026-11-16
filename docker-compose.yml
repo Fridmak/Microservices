@@ -1,0 +1,123 @@
+name: microservices
+
+x-common-env: &common-env
+  ASPNETCORE_ENVIRONMENT: Development
+  Jwt__Key: ${JWT_KEY:?JWT_KEY is required}
+  Jwt__Issuer: AuthService
+  Jwt__Audience: TaskManagementSystem
+  Jwt__ExpiryHours: "24"
+  Database__MigrateOnStartup: "true"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth:
+    build:
+      context: .
+      dockerfile: AuthService/Dockerfile
+    environment:
+      <<: *common-env
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=AuthDb;Username=app;Password=${POSTGRES_PASSWORD}
+      Services__Security__ApiKey: ${SERVICE_API_KEY:?SERVICE_API_KEY is required}
+      Auth__Cookie__Secure: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "7001:8080"
+
+  tasks:
+    build:
+      context: .
+      dockerfile: TaskService/Dockerfile
+    environment:
+      <<: *common-env
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=TaskDb;Username=app;Password=${POSTGRES_PASSWORD}
+      Services__AuthService__BaseUrl: http://auth:8080
+      Services__AuthService__ApiKey: ${SERVICE_API_KEY}
+      Services__NotificationService__BaseUrl: http://notifications:8080
+      Services__NotificationService__ApiKey: ${SERVICE_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    ports:
+      - "7002:8080"
+
+  notifications:
+    build:
+      context: .
+      dockerfile: NotificationService/Dockerfile
+    environment:
+      <<: *common-env
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=NotificationsDb;Username=app;Password=${POSTGRES_PASSWORD}
+      Services__Security__ApiKey: ${SERVICE_API_KEY}
+      Cors__AllowedOrigins__0: ${FRONTEND_ORIGIN:-http://localhost:5173}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "7003:8080"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: ApiGateway/Dockerfile
+    environment:
+      <<: *common-env
+      ReverseProxy__Clusters__auth_cluster__Destinations__auth_service__Address: http://auth:8080
+      ReverseProxy__Clusters__tasks_cluster__Destinations__tasks_service__Address: http://tasks:8080
+      ReverseProxy__Clusters__notifications_cluster__Destinations__notifications_service__Address: http://notifications:8080
+      Cors__AllowedOrigins__0: ${FRONTEND_ORIGIN:-http://localhost:5173}
+    depends_on:
+      auth:
+        condition: service_started
+      tasks:
+        condition: service_started
+      notifications:
+        condition: service_started
+    ports:
+      - "7000:8080"
+
+  wasmgate:
+    build:
+      context: .
+      dockerfile: deploy/wasmgate/Dockerfile
+      args:
+        WASMGATE_REF: ${WASMGATE_REF:-4d9448fd23dbe30a6ea58e392e7bad3fe8307a39}
+    environment:
+      WASMGATE_ADMIN_TOKEN: ${WASMGATE_ADMIN_TOKEN:-dev-wasmgate-admin-token}
+    depends_on:
+      gateway:
+        condition: service_started
+      notifications:
+        condition: service_started
+    ports:
+      - "8080:8080"
+      - "127.0.0.1:19099:9099"
+      # Optional WasmGate L4 PostgreSQL demo. Services use postgres:5432.
+      - "127.0.0.1:5433:5433"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -H \"Authorization: Bearer $$WASMGATE_ADMIN_TOKEN\" http://127.0.0.1:9099/healthz >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

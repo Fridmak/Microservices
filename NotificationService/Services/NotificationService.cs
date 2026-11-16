@@ -1,16 +1,41 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using NotificationService.Models;
+using Npgsql;
+using Shared.Contracts;
+using Shared.Exceptions;
 using Shared.Models;
+using NotificationService.Models;
 
 namespace NotificationService.Services
 {
     public interface INotificationService
     {
-        Task<IEnumerable<Notification>> GetNotificationsForUserAsync(Guid userId, bool all = false);
-        Task<Notification> CreateNotificationAsync(Notification notification);
-        Task<bool> MarkAsReadAsync(Guid notificationId, Guid userId);
+        Task<PagedResult<Notification>> GetNotificationsForUserAsync(
+            Guid userId,
+            bool unreadOnly,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default);
+
+        Task<Notification> CreateNotificationAsync(
+            Notification notification,
+            CancellationToken cancellationToken = default);
+
+        Task<bool> MarkAsReadAsync(
+            Guid notificationId,
+            Guid userId,
+            CancellationToken cancellationToken = default);
+
+        Task<int> MarkAllAsReadAsync(Guid userId, CancellationToken cancellationToken = default);
+
+        Task<bool> DeleteAsync(
+            Guid notificationId,
+            Guid userId,
+            CancellationToken cancellationToken = default);
     }
+
     public class NotificationService : INotificationService
     {
         private readonly NotificationDbContext _context;
@@ -27,82 +52,178 @@ namespace NotificationService.Services
             _hubContext = hubContext;
         }
 
-        public async Task<IEnumerable<Notification>> GetNotificationsForUserAsync(Guid userId, bool all = false)
+        public async Task<PagedResult<Notification>> GetNotificationsForUserAsync(
+            Guid userId,
+            bool unreadOnly,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default)
         {
-            try
-            {
-                var notifications = await _context.Notifications
-                    .Where(x => x.UserId == userId && (all || !x.IsRead))
-                    .OrderByDescending(n => n.CreatedAt)
-                    .ToListAsync();
+            page = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, 100);
 
-                _logger.LogInformation($"Получено {notifications.Count} уведомлений для пользователя {userId}");
+            var query = _context.Notifications
+                .AsNoTracking()
+                .Where(notification => notification.UserId == userId);
 
-                return notifications;
-            }
-            catch (Exception ex)
+            if (unreadOnly)
             {
-                _logger.LogError(ex, $"Ошибка при получении уведомлений для пользователя {userId}");
-                throw;
+                query = query.Where(notification => !notification.IsRead);
             }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+            var items = await query
+                .OrderByDescending(notification => notification.CreatedAt)
+                .ThenByDescending(notification => notification.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return new PagedResult<Notification>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
         }
 
-        public async Task<Notification> CreateNotificationAsync(Notification notification)
+        public Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default)
         {
-            try
-            {
-                if (notification == null || notification.UserId == Guid.Empty)
-                    throw new ArgumentException("Некорректные данные уведомления");
+            return _context.Notifications
+                .AsNoTracking()
+                .CountAsync(notification => notification.UserId == userId && !notification.IsRead, cancellationToken);
+        }
 
+        public async Task<Notification> CreateNotificationAsync(
+            Notification notification,
+            CancellationToken cancellationToken = default)
+        {
+            if (notification is null || notification.UserId == Guid.Empty)
+            {
+                throw new BadRequestException("Некорректные данные уведомления.");
+            }
+
+            if (string.IsNullOrWhiteSpace(notification.Title) || string.IsNullOrWhiteSpace(notification.Message))
+            {
+                throw new BadRequestException("Заголовок и текст уведомления обязательны.");
+            }
+
+            if (notification.Id == Guid.Empty)
+            {
                 notification.Id = Guid.NewGuid();
-                notification.CreatedAt = DateTime.UtcNow;
-                notification.IsRead = false;
-
-                _context.Notifications.Add(notification);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Создано уведомление типа {notification.Type} для пользователя {notification.UserId}");
-
-                await _hubContext.Clients.User(notification.UserId.ToString())
-                    .SendAsync("ReceiveNotification", notification);
-
-                return notification;
             }
-            catch (Exception ex)
+
+            var existing = await _context.Notifications
+                .AsNoTracking()
+                .FirstOrDefaultAsync(item => item.Id == notification.Id, cancellationToken);
+
+            if (existing is not null)
             {
-                _logger.LogError(ex, "Ошибка при создании уведомления");
-                throw;
+                return existing;
             }
-        }
 
-        public async Task<bool> MarkAsReadAsync(Guid notificationId, Guid userId)
-        {
+            notification.CreatedAt = DateTime.UtcNow;
+            notification.IsRead = false;
+
+            _context.Notifications.Add(notification);
+
             try
             {
-                var notification = await _context.Notifications.FindAsync(notificationId);
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // At-least-once delivery from the outbox: the same notification may be retried.
+                return await _context.Notifications
+                    .AsNoTracking()
+                    .FirstAsync(item => item.Id == notification.Id, cancellationToken);
+            }
 
-                if (notification == null)
-                    return false;
+            _logger.LogInformation(
+                "Created notification {NotificationId} of type {Type} for user {UserId}",
+                notification.Id,
+                notification.Type,
+                notification.UserId);
 
-                if (notification.UserId != userId)
-                    return false;
-
-                notification.IsRead = true;
-                _context.Notifications.Update(notification);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Уведомление {notificationId} отмечено как прочитанное");
-
-                await _hubContext.Clients.User(notification.UserId.ToString())
-                    .SendAsync("NotificationUpdated", notification);
-
-                return true;
+            try
+            {
+                await _hubContext.Clients
+                    .User(notification.UserId.ToString())
+                    .SendAsync("ReceiveNotification", notification);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Ошибка при отметке уведомления {notificationId} как прочитанного");
+                _logger.LogWarning(ex, "Failed to push notification {NotificationId} via SignalR", notification.Id);
+            }
+
+            return notification;
+        }
+
+        public async Task<bool> MarkAsReadAsync(
+            Guid notificationId,
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(item => item.Id == notificationId, cancellationToken);
+
+            if (notification is null || notification.UserId != userId)
+            {
                 return false;
             }
+
+            if (!notification.IsRead)
+            {
+                notification.IsRead = true;
+                await _context.SaveChangesAsync(cancellationToken);
+
+                try
+                {
+                    await _hubContext.Clients
+                        .User(notification.UserId.ToString())
+                        .SendAsync("NotificationUpdated", notification);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to push notification update {NotificationId} via SignalR", notification.Id);
+                }
+            }
+
+            return true;
+        }
+
+        public async Task<int> MarkAllAsReadAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            var affected = await _context.Notifications
+                .Where(notification => notification.UserId == userId && !notification.IsRead)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(notification => notification.IsRead, true),
+                    cancellationToken);
+
+            _logger.LogInformation("Marked {Count} notifications as read for user {UserId}", affected, userId);
+            return affected;
+        }
+
+        public async Task<bool> DeleteAsync(
+            Guid notificationId,
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(item => item.Id == notificationId, cancellationToken);
+
+            if (notification is null || notification.UserId != userId)
+            {
+                return false;
+            }
+
+            _context.Notifications.Remove(notification);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return true;
         }
     }
 }

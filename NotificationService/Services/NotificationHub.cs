@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using Shared.Models;
 using System.Security.Claims;
 
 namespace NotificationService.Services
@@ -9,7 +8,7 @@ namespace NotificationService.Services
     {
         public string GetUserId(HubConnectionContext connection)
         {
-            return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
         }
     }
 
@@ -23,18 +22,16 @@ namespace NotificationService.Services
             _logger = logger;
         }
 
-        public async Task SendNotification(Notification notification)
+        public override async Task OnConnectedAsync()
         {
-            try
-            {
-                await Clients.User(notification.UserId.ToString()).SendAsync("ReceiveNotification", notification);
+            _logger.LogInformation("SignalR client connected: {ConnectionId}", Context.ConnectionId);
+            await base.OnConnectedAsync();
+        }
 
-                _logger.LogInformation($"Уведомление отправлено пользователю {notification.UserId}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Ошибка при отправке уведомления через SignalR пользователю {notification.UserId}");
-            }
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            _logger.LogInformation("SignalR client disconnected: {ConnectionId}", Context.ConnectionId);
+            await base.OnDisconnectedAsync(exception);
         }
     }
 }
