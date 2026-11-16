@@ -18,8 +18,8 @@ function New-Secret {
 
 $envPath = Join-Path $root '.env'
 if (-not (Test-Path $envPath)) {
-    $existingVolume = docker volume inspect microservices_pgdata 2>$null
-    if ($LASTEXITCODE -eq 0) {
+    $existingVolume = docker volume ls --quiet --filter name=microservices_pgdata
+    if ($existingVolume -eq 'microservices_pgdata') {
         throw 'Existing Postgres volume found without .env. Restore .env or run "docker compose down -v" first.'
     }
 
@@ -49,7 +49,7 @@ Write-Host ''
 Write-Host 'Microservices stack is up:'
 Write-Host '  Public API / SignalR : http://localhost:8080'
 Write-Host '  Swagger              : http://localhost:7001/swagger, :7002/swagger, :7003/swagger'
-Write-Host '  WasmGate admin       : http://localhost:9099 (Bearer token from .env)'
+Write-Host '  WasmGate admin       : http://localhost:19099 (Bearer token from .env)'
 if ($adminToken) {
     Write-Host "  WasmGate token       : $adminToken"
 }

@@ -139,13 +139,14 @@ docker compose up -d --build
 | Сервис | URL |
 |---|---|
 | **WasmGate (публичная точка входа)** | **http://localhost:8080** |
-| WasmGate admin (`/healthz`, `/metrics`) | http://localhost:9099 (Bearer token) |
+| WasmGate admin (`/healthz`, `/metrics`) | http://localhost:19099 (Bearer token) |
 | ApiGateway (внутренний/direct) | http://localhost:7000 |
 | AuthService / Swagger | http://localhost:7001/swagger |
 | TaskService / Swagger | http://localhost:7002/swagger |
 | NotificationService / Swagger | http://localhost:7003/swagger |
 | Health через WasmGate | `http://localhost:8080/health` |
-| PostgreSQL | `localhost:55432` (пользователь `app`) |
+| PostgreSQL (direct) | `localhost:55432` (пользователь `app`) |
+| PostgreSQL через WasmGate L4 (demo) | `localhost:5433` (пользователь `app`) |
 
 Миграции применяются автоматически при старте контейнеров
 (`Database__MigrateOnStartup=true`). Полный сброс:
@@ -162,7 +163,7 @@ WasmGate:
 WASMGATE_REF=main docker compose up -d --build wasmgate
 ```
 
-Токен для `:9099` лежит в `.env` как `WASMGATE_ADMIN_TOKEN` (скрипт выше
+Токен для `:19099` лежит в `.env` как `WASMGATE_ADMIN_TOKEN` (скрипт выше
 генерирует его автоматически).
 
 Публичные API-запросы идут через `http://localhost:8080`, а не напрямую в
@@ -179,6 +180,20 @@ YARP. NotificationService принимает `auth_token` из cookie (или
 не является полноценным HTTP-роутером. Для production предпочтительнее
 TLS-терминация на WasmGate и/или раздельные hostname `api.*` и `ws.*` с
 SNI-роутингом.
+
+### PostgreSQL через WasmGate
+
+Порт `localhost:5433` — отдельный L4-listener WasmGate, который релеит сырой
+PostgreSQL-трафик в `postgres:5432`:
+
+```bash
+psql "host=localhost port=5433 user=app dbname=postgres"
+```
+
+Это **демонстрационный** маршрут: сервисы по-прежнему подключаются к
+`postgres:5432` напрямую. Ставить БД на критический путь edge-прокси в
+production не стоит — это лишняя точка отказа и циклическая зависимость
+(приложение → WasmGate → PostgreSQL).
 
 ## Локальный запуск
 

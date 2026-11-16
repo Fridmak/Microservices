@@ -35,6 +35,22 @@ listeners:
       # verdict 2 -> api, verdict 3 -> api (static fallback), verdict 4 -> ws
       route_pools: ["api", "api", "ws"]
 
+  # Optional L4 demo listener. This is deliberately NOT on the application's
+  # database path: the services keep connecting to postgres:5432 directly.
+  # It demonstrates raw TCP/PostgreSQL relaying (SSLRequest, prepared
+  # statements, COPY, etc. all pass through untouched).
+  - name: postgres
+    addr: "0.0.0.0:5433"
+    upstream_pool: postgres
+    max_conns: 200
+    dial_timeout: 3s
+    idle_timeout: 0s
+    rate_limit:
+      max: 100
+      subnet_max: 500
+      window: 1s
+      ban_duration: 5s
+
 pools:
   api:
     balance: round_robin
@@ -47,6 +63,13 @@ pools:
     balance: round_robin
     servers:
       - "notifications:8080"
+    health_check:
+      interval: 5s
+      timeout: 1s
+  postgres:
+    balance: least_conn
+    servers:
+      - "postgres:5432"
     health_check:
       interval: 5s
       timeout: 1s

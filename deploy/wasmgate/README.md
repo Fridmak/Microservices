@@ -15,7 +15,13 @@ Routing:
 client :8080
   /api/* -> gateway:8080
   /ws*   -> notifications:8080
+
+client :5433 (optional L4 demo)
+  raw PostgreSQL -> postgres:5432
 ```
+
+The PostgreSQL listener is intentionally separate from the application's
+database path: services keep using `postgres:5432` directly.
 
 The `path_router` plugin inspects the first client packet. It is suitable for
 this local demo; for production prefer TLS termination plus host/SNI routing

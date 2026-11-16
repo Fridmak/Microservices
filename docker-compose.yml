@@ -19,7 +19,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
     ports:
-      - "55432:5432"
+      - "127.0.0.1:55432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U app -d postgres"]
       interval: 5s
@@ -110,7 +110,9 @@ services:
         condition: service_started
     ports:
       - "8080:8080"
-      - "9099:9099"
+      - "127.0.0.1:19099:9099"
+      # Optional WasmGate L4 PostgreSQL demo. Services use postgres:5432.
+      - "127.0.0.1:5433:5433"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS -H \"Authorization: Bearer $$WASMGATE_ADMIN_TOKEN\" http://127.0.0.1:9099/healthz >/dev/null"]
       interval: 5s

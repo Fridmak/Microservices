@@ -27,4 +27,4 @@ echo
 echo "Microservices stack is up:"
 echo "  Public API / SignalR : http://localhost:8080"
 echo "  Swagger              : http://localhost:7001/swagger, :7002/swagger, :7003/swagger"
-echo "  WasmGate admin       : http://localhost:9099 (Bearer token from .env)"
+echo "  WasmGate admin       : http://localhost:19099 (Bearer token from .env)"
