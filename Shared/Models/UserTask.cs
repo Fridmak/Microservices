@@ -4,27 +4,49 @@ namespace Shared.Models
 {
     public class UserTask
     {
+        public Guid Id { get; set; }
+
         [Required]
-        public Guid Id { get; init; }
+        public Guid OwnerId { get; set; }
+
         [Required]
         public Guid AssignedToUserId { get; set; }
+
         [Required]
         public DateTime CreationTime { get; set; }
+
         [Required]
-        public string Title { get; set; }
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
         [Required]
-        public DateTime DeadLine {  get; set; }
+        public DateTime DeadLine { get; set; }
+
         [Required]
         public Priority Priority { get; set; }
-        public bool IsSoftDeleted { get; set; } = false;
+
+        public UserTaskStatus Status { get; set; } = UserTaskStatus.Todo;
+
+        public DateTime? CompletedAt { get; set; }
+
+        public bool IsSoftDeleted { get; set; }
+
         public List<string> Comment { get; set; } = new();
     }
 
     public enum Priority
     {
-        Normal,
-        High,
-        Low,
-        Necessary
+        Normal = 0,
+        High = 1,
+        Low = 2,
+        Necessary = 3
+    }
+
+    public enum UserTaskStatus
+    {
+        Todo = 0,
+        InProgress = 1,
+        Done = 2,
+        Cancelled = 3
     }
 }

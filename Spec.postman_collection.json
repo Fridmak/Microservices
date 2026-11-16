@@ -1,368 +1,393 @@
 {
-	"info": {
-		"_postman_id": "13b7f593-cf01-4fed-a3bb-1e1d5e2519b7",
-		"name": "Spec",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "46821439",
-		"_collection_link": "https://lively-rocket-9383385.postman.co/workspace/Mr.-Fridmak_Play's-Workspace~e28fe61a-1b38-4b7e-80e0-57fc9b9b6be0/collection/46821439-13b7f593-cf01-4fed-a3bb-1e1d5e2519b7?action=share&source=collection_link&creator=46821439"
-	},
-	"item": [
-		{
-			"name": "Auth",
-			"item": [
-				{
-					"name": "RegisterUser",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"username\" : \"TestNotifications\",\r\n    \"password\" : \"password\",\r\n    \"email\" : \"Emails\"\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseURL}}/api/auth/register",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"register"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "LoginUser",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"email\" : \"Emails\",\r\n    \"password\" : \"password\"\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseURL}}/api/auth/login",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"login"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "AboutCurrentUser",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"Email\": \"apbatin2005@gmail.com\",\r\n    \"Password\" : \"1\"\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseURL}}/api/auth/me",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"me"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Tasks",
-			"item": [
-				{
-					"name": "AddTask",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"title\" : \"Go to dasha\",\r\n    \"description\" : \"I need to go to hospital to her\",\r\n    \"deadLine\" : \"2025-01-15T14:30:45.123Z\",\r\n    \"priority\" : \"High\"\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseURL}}/api/tasks",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"tasks"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "UpdateTaskById",
-					"request": {
-						"method": "PUT",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"comment\": \"AddComment\",\r\n    \"description\": \"Second comment\"\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseURL}}/api/tasks/9329b581-7997-441e-a40f-142516691211",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"tasks",
-								"9329b581-7997-441e-a40f-142516691211"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "DeleteTask",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"IsHardDelete\": true\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseURL}}/api/tasks/9329b581-7997-441e-a40f-142516691211",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"tasks",
-								"9329b581-7997-441e-a40f-142516691211"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "GetTaskById",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseURL}}/api/tasks/9329b581-7997-441e-a40f-142516691211",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"tasks",
-								"9329b581-7997-441e-a40f-142516691211"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "GetTasks",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseURL}}/api/tasks",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"tasks"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "AssignTask",
-					"protocolProfileBehavior": {
-						"disabledSystemHeaders": {
-							"content-type": true
-						}
-					},
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"userId\" : \"293ca023-3924-4141-a080-8d88325d4ef4\"\r\n}"
-						},
-						"url": {
-							"raw": "{{baseURL}}/api/tasks/520cb314-2e25-4909-ae8a-e804f66a044e/assign",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"tasks",
-								"520cb314-2e25-4909-ae8a-e804f66a044e",
-								"assign"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "GetTaskByIdHistory",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseURL}}/api/tasks/9329b581-7997-441e-a40f-142516691211/history",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"tasks",
-								"9329b581-7997-441e-a40f-142516691211",
-								"history"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Notifications",
-			"item": [
-				{
-					"name": "GetNotifications",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseURL}}/api/notifications/07c022e3-75b6-4395-ae99-88a77ec4ce3f",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"notifications",
-								"07c022e3-75b6-4395-ae99-88a77ec4ce3f"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "CreateNotification",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"UserId\" : \"id\",\r\n    \"Title\" : \"Title\",\r\n    \"Message\" : \"Message\",\r\n    //TaskCreated, TaskAssigned, TaskUpdated, TaskDeleted, TaskReassigned\r\n    \"Type\" : \"TaskCreated\",\r\n    \"Author\" : \"nullable\",\r\n    \"CreatedAt\" : \"2024-01-15T14:30:45.123Z\",\r\n    \"Data\" : {\"somedata\" : \"data\"}\r\n}"
-						},
-						"url": {
-							"raw": "{{baseURL}}/api/notifications",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"notifications"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "MarkNotificationRead",
-					"request": {
-						"method": "PUT",
-						"header": [],
-						"url": {
-							"raw": "{{baseURL}}/api/notifications/3c60073f-e756-4e21-a99f-9d6eda353475/mark-as-read",
-							"host": [
-								"{{baseURL}}"
-							],
-							"path": [
-								"api",
-								"notifications",
-								"3c60073f-e756-4e21-a99f-9d6eda353475",
-								"mark-as-read"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		}
-	],
-	"variable": [
-		{
-			"key": "baseURL",
-			"value": "",
-			"type": "default"
-		}
-	]
+  "info": {
+    "name": "Microservices API",
+    "description": "Task management API. All public requests go through the gateway at http://localhost:7000. Login stores an HttpOnly cookie; Postman keeps it automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseURL", "value": "http://localhost:7000" },
+    { "key": "notificationServiceURL", "value": "http://localhost:7003" },
+    { "key": "serviceApiKey", "value": "change-me-service-api-key" },
+    { "key": "emailA", "value": "alice@example.com" },
+    { "key": "emailB", "value": "bob@example.com" },
+    { "key": "password", "value": "password123" },
+    { "key": "taskId", "value": "" },
+    { "key": "notificationId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"Alice\",\n  \"email\": \"{{emailA}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register B",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"Bob\",\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login A",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailA}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/login",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login B",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/login",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/auth/me",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/auth/users?page=1&pageSize=20",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/auth/logout",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Create Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set('taskId', pm.response.json().id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Prepare release notes\",\n  \"description\": \"Describe the changes\",\n  \"deadLine\": \"2026-12-31T18:00:00Z\",\n  \"priority\": \"High\",\n  \"assigneeId\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/tasks",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tasks"]
+            }
+          }
+        },
+        {
+          "name": "List Tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/tasks?page=1&pageSize=20&scope=Assigned&sortBy=ByPriority",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tasks"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" },
+                { "key": "scope", "value": "Assigned" },
+                { "key": "sortBy", "value": "ByPriority" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Task",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/tasks/{{taskId}}",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tasks", "{{taskId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated release notes\",\n  \"deadline\": \"2026-12-31T18:00:00Z\",\n  \"priority\": \"Necessary\",\n  \"comment\": \"AddComment\",\n  \"description\": \"Added a comment\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/tasks/{{taskId}}",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tasks", "{{taskId}}"]
+            }
+          }
+        },
+        {
+          "name": "Change Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Done\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/tasks/{{taskId}}/status",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tasks", "{{taskId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Assign Task",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/tasks/{{taskId}}/assign",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tasks", "{{taskId}}", "assign"]
+            }
+          }
+        },
+        {
+          "name": "Task History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/tasks/{{taskId}}/history?page=1&pageSize=20",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tasks", "{{taskId}}", "history"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Soft Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/tasks/{{taskId}}?hard=false",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tasks", "{{taskId}}"],
+              "query": [{ "key": "hard", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "Restore Task",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/tasks/{{taskId}}/restore",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tasks", "{{taskId}}", "restore"]
+            }
+          }
+        },
+        {
+          "name": "Hard Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/tasks/{{taskId}}?hard=true",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tasks", "{{taskId}}"],
+              "query": [{ "key": "hard", "value": "true" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/notifications?page=1&pageSize=20&unreadOnly=false",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" },
+                { "key": "unreadOnly", "value": "false" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Unread Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/notifications/unread-count",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "notifications", "unread-count"]
+            }
+          }
+        },
+        {
+          "name": "Mark As Read",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/notifications/{{notificationId}}/read",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "notifications", "{{notificationId}}", "read"]
+            }
+          }
+        },
+        {
+          "name": "Mark All As Read",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/notifications/read-all",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "notifications", "read-all"]
+            }
+          }
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/notifications/{{notificationId}}",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "notifications", "{{notificationId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Notification (internal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Api-Key", "value": "{{serviceApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"title\": \"Manual notification\",\n  \"message\": \"Created from Postman\",\n  \"type\": \"TaskCreated\",\n  \"taskId\": null,\n  \"relatedUserId\": null,\n  \"author\": null,\n  \"data\": null\n}"
+            },
+            "url": {
+              "raw": "{{notificationServiceURL}}/internal/notifications",
+              "host": ["{{notificationServiceURL}}"],
+              "path": ["internal", "notifications"]
+            }
+          }
+        }
+      ]
+    }
+  ]
 }

@@ -1,9 +1,10 @@
+using System.Text.Json.Serialization;
 using AuthService.Models;
 using AuthService.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using Shared.Exceptions;
+using Shared.Extensions;
+using Shared.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,34 +13,55 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
 
 builder.Services.AddScoped<PasswordService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<LoginAttemptLimiter>();
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+builder.Services.AddJwtAuthentication(builder.Configuration);
+
+builder.Services.AddOptions<CookieAuthOptions>()
+    .Bind(builder.Configuration.GetSection(CookieAuthOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<ServiceAuthOptions>()
+    .Bind(builder.Configuration.GetSection(ServiceAuthOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.ApiKey), "Services:Security:ApiKey is required.")
+    .ValidateOnStart();
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-    };
-});
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-builder.Services.AddControllers();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AuthDbContext>();
+
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    await app.Services.MigrateDatabaseAsync<AuthDbContext>(app.Logger);
+}
+
+app.UseExceptionHandler();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
+
+public partial class Program { }

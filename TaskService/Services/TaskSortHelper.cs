@@ -1,51 +1,52 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Shared.Models;
-using TaskService.Models;
-using System.Globalization;
 using System.Linq.Expressions;
+using TaskService.Models;
 
 namespace TaskService.Services
 {
     public class TaskSortHelper : ITaskSorter
     {
-        public async Task<List<UserTask>> SortQueryOfTasks(
-            GetTasksQueryParams rules,
-            IQueryable<UserTask> query)
+        public IQueryable<UserTask> Apply(GetTasksQueryParams rules, IQueryable<UserTask> query)
         {
             query = query.Where(task => !task.IsSoftDeleted);
 
             if (rules.PriorityFilter.HasValue)
             {
-                query = query.Where(task => task.Priority == rules.PriorityFilter);
+                query = query.Where(task => task.Priority == rules.PriorityFilter.Value);
+            }
+
+            if (rules.StatusFilter.HasValue)
+            {
+                query = query.Where(task => task.Status == rules.StatusFilter.Value);
+            }
+
+            if (rules.DeadlineFrom.HasValue)
+            {
+                query = query.Where(task => task.DeadLine >= rules.DeadlineFrom.Value);
+            }
+
+            if (rules.DeadlineTo.HasValue)
+            {
+                query = query.Where(task => task.DeadLine <= rules.DeadlineTo.Value);
             }
 
             if (!string.IsNullOrWhiteSpace(rules.SearchTerm))
             {
-                var normalizedTerm = NormalizeSearchTerm(rules.SearchTerm);
-                query = query.Where(BuildSearchExpression(normalizedTerm));
+                var pattern = $"%{NormalizeSearchTerm(rules.SearchTerm)}%";
+                query = query.Where(task => EF.Functions.ILike(task.Title, pattern, "\\"));
             }
 
-            query = ApplySorting(rules, query);
-            query = ApplyPagination(rules, query);
-
-            return await query.ToListAsync();
+            return ApplySorting(rules, query);
         }
 
         private static string NormalizeSearchTerm(string term)
         {
             return term
                 .Trim()
-                .ToLower(CultureInfo.InvariantCulture)
+                .Replace("\\", "\\\\")
                 .Replace("%", "\\%")
                 .Replace("_", "\\_");
-        }
-
-        private static Expression<Func<UserTask, bool>> BuildSearchExpression(string term)
-        {
-            return task => EF.Functions.Like(
-                task.Title.ToLower(),
-                $"%{term}%",
-                "\\");
         }
 
         private static IQueryable<UserTask> ApplySorting(
@@ -55,34 +56,40 @@ namespace TaskService.Services
             return rules.SortBy switch
             {
                 SortTasks.ByPriority => query
-                    .OrderByDescending(task => task.Priority)
-                    .ThenBy(task => task.DeadLine),
+                    .OrderByDescending(PriorityRankDescending)
+                    .ThenBy(task => task.DeadLine)
+                    .ThenBy(task => task.Id),
 
                 SortTasks.ByDeadline => query
                     .OrderBy(task => task.DeadLine)
-                    .ThenByDescending(task => task.Priority),
+                    .ThenByDescending(PriorityRankDescending)
+                    .ThenBy(task => task.Id),
 
                 SortTasks.ByCreationDate => query
                     .OrderByDescending(task => task.CreationTime)
-                    .ThenByDescending(task => task.Priority),
+                    .ThenByDescending(PriorityRankDescending)
+                    .ThenBy(task => task.Id),
 
-                _ => query.OrderByDescending(task => task.CreationTime) 
+                _ => query
+                    .OrderByDescending(task => task.CreationTime)
+                    .ThenBy(task => task.Id)
             };
         }
 
-        private static IQueryable<UserTask> ApplyPagination(
-           GetTasksQueryParams rules,
-           IQueryable<UserTask> query)
-        {
-            var maxAllowed = 100;
-            var take = Math.Min(rules.MaxTasks ?? 10, maxAllowed);
-
-            return take > 0 ? query.Take(take) : query;
-        }
+        // Business rank: Low < Normal < High < Necessary.
+        // Stored numeric enum values are kept for backward compatibility with existing data.
+        private static readonly Expression<Func<UserTask, int>> PriorityRankDescending = task =>
+            task.Priority == Priority.Necessary
+                ? 3
+                : task.Priority == Priority.High
+                    ? 2
+                    : task.Priority == Priority.Normal
+                        ? 1
+                        : 0;
     }
 
     public interface ITaskSorter
     {
-        Task<List<UserTask>> SortQueryOfTasks(GetTasksQueryParams rules, IQueryable<UserTask> query);
+        IQueryable<UserTask> Apply(GetTasksQueryParams rules, IQueryable<UserTask> query);
     }
 }

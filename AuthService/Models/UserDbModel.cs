@@ -7,23 +7,26 @@ namespace AuthService.Models
     {
         [Required]
         public Guid Id { get; set; }
+
         [Required]
-        [MaxLength(20)]
-        public string Name { get; set; }
+        [MaxLength(50)]
+        public string Name { get; set; } = string.Empty;
+
         [Required]
-        public string PasswordHash { get; set; }
+        public string PasswordHash { get; set; } = string.Empty;
+
         [Required]
-        public string Email { get; set; }
+        [MaxLength(254)]
+        public string Email { get; set; } = string.Empty;
 
         public PublicUser ToPublicUser()
         {
-            var user = new PublicUser {
+            return new PublicUser
+            {
                 Id = Id,
                 Email = Email,
-                Name = Name,
+                Name = Name
             };
-
-            return user;
         }
     }
 }

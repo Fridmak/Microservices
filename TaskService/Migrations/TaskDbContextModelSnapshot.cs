@@ -36,6 +36,9 @@ namespace TaskService.Migrations
                         .IsRequired()
                         .HasColumnType("text[]");
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("CreationTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -45,16 +48,72 @@ namespace TaskService.Migrations
                     b.Property<bool>("IsSoftDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
                         .HasColumnType("integer");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Tasks");
+                    b.HasIndex("Priority");
+
+                    b.HasIndex("AssignedToUserId", "IsSoftDeleted");
+
+                    b.HasIndex("OwnerId", "IsSoftDeleted");
+
+                    b.HasIndex("IsSoftDeleted", "Status", "DeadLine");
+
+                    b.ToTable("Tasks", (string)null);
+                });
+
+            modelBuilder.Entity("TaskService.Models.Db.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ProcessingAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessedAt", "NextAttemptAt");
+
+                    b.ToTable("OutboxMessages", (string)null);
                 });
 
             modelBuilder.Entity("TaskService.Models.Db.TaskHistory", b =>
@@ -69,6 +128,10 @@ namespace TaskService.Migrations
                     b.Property<Guid>("ChangedByUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Details")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("FullTaskState")
                         .HasColumnType("text");
 
@@ -80,7 +143,9 @@ namespace TaskService.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TaskHistories");
+                    b.HasIndex("TaskId", "ChangedAt");
+
+                    b.ToTable("TaskHistories", (string)null);
                 });
 #pragma warning restore 612, 618
         }

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main, revive/**]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore Microservices.sln
+
+      - name: Build
+        run: dotnet build Microservices.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test tests/Microservices.IntegrationTests/Microservices.IntegrationTests.csproj --no-build -c Release --logger "console;verbosity=normal"
+
+      - name: Build Docker images
+        run: docker compose build
+        env:
+          POSTGRES_PASSWORD: ci-postgres-password
+          JWT_KEY: ci-jwt-key-0123456789abcdefghijklmnop
+          SERVICE_API_KEY: ci-service-api-key
